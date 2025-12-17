@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 HiveMQ Dashboard</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f4; }
+        .box { background: white; padding: 20px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .status { font-size: 24px; font-weight: bold; color: #007bff; margin: 20px 0; }
+        button { padding: 10px 25px; font-size: 16px; margin: 10px; cursor: pointer; border: none; border-radius: 5px; color: white; }
+        .on-btn { background: #28a745; }
+        .off-btn { background: #dc3545; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h1>ESP32 Control Panel</h1>
+        <p>Current LED Status:</p>
+        <div id="status" class="status">Connecting...</div>
+        
+        <button class="on-btn" onclick="sendMQTT('ON')">Turn LED ON</button>
+        <button class="off-btn" onclick="sendMQTT('OFF')">Turn LED OFF</button>
+    </div>
+
+    <script>
+        // Use Port 8884 for WebSockets in browsers
+        const broker = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
+        
+        const options = {
+            username: 'hivemq.webclient.1765988598964',
+            password: 'EgKs56<ae$f.,zW4L7JU',
+            clientId: 'web_client_' + Math.random().toString(16).substr(2, 8)
+        };
+
+        const client = mqtt.connect(broker, options);
+
+        client.on('connect', () => {
+            console.log('Connected to HiveMQ!');
+            document.getElementById('status').innerText = 'Online - Waiting...';
+            // Subscribe to status updates from ESP32
+            client.subscribe('sachin/esp32/led/status');
+        });
+
+        // Listen for messages from ESP32
+        client.on('message', (topic, message) => {
+            document.getElementById('status').innerText = message.toString();
+        });
+
+        // Send commands to ESP32
+        function sendMQTT(command) {
+            client.publish('sachin/esp32/led/control', command);
+            console.log('Sent:', command);
+        }
+    </script>
+</body>
+</html>
