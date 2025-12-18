@@ -207,6 +207,23 @@
             margin-bottom: 5px;
         }
 
+        .safety-warning {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 15px;
+            line-height: 1.6;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .safety-warning .icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
         .ripple {
             position: absolute;
             border-radius: 50%;
@@ -265,8 +282,15 @@
         <div class="info-box">
             <strong>📡 System Info:</strong>
             • Distance: 100,000 steps per command<br>
-            • Speed: Optimized (300μs step delay)<br>
+            • Speed: Optimized (75μs step delay)<br>
             • Steering: Differential (L/R motors opposing)
+        </div>
+
+        <div class="safety-warning">
+            <div class="icon">🛡️</div>
+            <strong>EMERGENCY STOP ACTIVE</strong><br>
+            Auto-stops at 75cm obstacle detection<br>
+            Resumes automatically when clear
         </div>
     </div>
 
