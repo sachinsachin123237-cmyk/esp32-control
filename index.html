@@ -1,42 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>4-Mode Wheelchair Control</title>
+    <title>Wheelchair Mode Control</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
-        body { text-align:center; font-family:Arial, sans-serif; background:#f0f2f5; padding:20px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 400px; margin: 0 auto; }
-        .btn { padding: 30px; font-size: 20px; border: none; border-radius: 15px; cursor: pointer; color: white; font-weight: bold; }
-        .straight { background: #4CAF50; grid-column: span 2; }
-        .back { background: #2196F3; grid-column: span 2; }
-        .left { background: #9C27B0; }
-        .right { background: #FF9800; }
-        #status { font-size: 22px; margin: 30px; color: #1976D2; font-weight: bold; }
-        .blink-info { font-size: 14px; color: #666; margin-bottom: 20px; }
+        body { text-align:center; font-family:Arial, sans-serif; background:#f4f4f4; padding:20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 400px; margin: 20px auto; }
+        .btn { padding: 30px; font-size: 20px; border: none; border-radius: 12px; cursor: pointer; color: white; font-weight: bold; }
+        .fwd { background: #4CAF50; grid-column: span 2; }
+        .bck { background: #2196F3; grid-column: span 2; }
+        .lft { background: #9C27B0; }
+        .rgt { background: #FF9800; }
+        #status { font-size: 20px; margin: 20px; color: #333; font-weight: bold; }
+        .blink-key { font-size: 14px; color: #666; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>🦽 Wheelchair Modes</h1>
-    <div id="status">Connecting...</div>
-    <div class="blink-info">Straight (1) | Back (2) | Left (3) | Right (4)</div>
+    <h1>🦽 Wheelchair Controls</h1>
+    <div id="status">Connecting to MQTT...</div>
 
     <div class="grid">
-        <button class="btn straight" onclick="send('F')">⬆️ STRAIGHT</button>
-        <button class="btn left" onclick="send('L')">⬅️ LEFT</button>
-        <button class="btn right" onclick="send('R')">➡️ RIGHT</button>
-        <button class="btn back" onclick="send('B')">⬇️ BACK</button>
+        <button class="btn fwd" onclick="send('F')">STRAIGHT (1 Blink)</button>
+        <button class="btn lft" onclick="send('L')">LEFT (3 Blinks)</button>
+        <button class="btn rgt" onclick="send('R')">RIGHT (4 Blinks)</button>
+        <button class="btn bck" onclick="send('B')">BACK (2 Blinks)</button>
     </div>
+
+    <div class="blink-key">All movements travel exactly 1000 steps.</div>
 
     <script>
         const broker = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
         const client = mqtt.connect(broker, {
             username: 'wheel',
             password: 'Wheel123',
-            clientId: 'web_mode_' + Math.random().toString(16).substr(2, 8)
+            clientId: 'web_control_' + Math.random().toString(16).substr(2, 8)
         });
 
         client.on('connect', () => {
-            document.getElementById('status').innerText = "Connected - Select Mode";
+            document.getElementById('status').innerText = "Connected - Ready";
             client.subscribe('sachin/esp32/nav/status');
         });
 
