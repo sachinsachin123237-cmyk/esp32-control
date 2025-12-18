@@ -1,308 +1,55 @@
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <PubSubClient.h>
+#include <WiFi.h><!DOCTYPE html>
+<html>
+<head>
+    <title>Wheelchair MQTT Control</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        body { text-align:center; font-family:Arial; background:#f0f0f0; padding:20px; }
+        .section { margin: 20px auto; padding: 20px; background: white; border-radius: 10px; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        button { font-size:18px; padding:15px; margin:10px; width: 80%; border-radius:8px; border:none; cursor:pointer; color:white; }
+        .start { background:#4CAF50; }
+        .room1 { background:#9C27B0; }
+        .room2 { background:#FF9800; }
+        .stop { background:#f44336; font-weight:bold; }
+        #status { font-size:20px; margin:20px; font-weight:bold; color:#1976D2; }
+    </style>
+</head>
+<body>
+    <h1>🦽 Wheelchair Navigation</h1>
+    <div id="status">Connecting to MQTT...</div>
 
-// -------- WIFI & MQTT CONFIGURATION --------
-const char* ssid = "123";
-const char* password = "sachin123237";
-const char* mqtt_server = "da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud";
-const int mqtt_port = 8883;
-const char* mqtt_user = "hivemq.webclient.1765988598964"; 
-const char* mqtt_password = "EgKs56<ae$f.,zW4L7JU";
+    <div class="section">
+        <button class="start" onclick="sendCmd('START')">🏠 GO TO START</button>
+        <button class="room1" onclick="sendCmd('ROOM1')">🚪 GO TO ROOM 1</button>
+        <button class="room2" onclick="sendCmd('ROOM2')">🚪 GO TO ROOM 2</button>
+    </div>
 
-// MQTT Topics
-const char* topic_nav_control = "sachin/esp32/nav/control";
-const char* topic_nav_status = "sachin/esp32/nav/status";
+    <div class="section">
+        <button class="stop" onclick="sendCmd('STOP')">🛑 EMERGENCY STOP</button>
+    </div>
 
-// -------- MOTOR & LED PINS --------
-#define PWR_L 12   // Step pin Left
-#define DIR_L 13   // Direction pin Left
-#define DIR_R 21   // Direction pin Right
-#define PWR_R 19   // Step pin Right
-#define LED_PIN 2  // Built-in LED
+    <script>
+        const broker = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
+        const options = {
+            username: 'hivemq.webclient.1765988598964',
+            password: 'EgKs56<ae$f.,zW4L7JU',
+            clientId: 'web_' + Math.random().toString(16).substr(2, 8)
+        };
 
-// -------- NAVIGATION PARAMETERS --------
-#define STEP_DELAY_US 600
-#define TURN_STEPS 1000
+        const client = mqtt.connect(broker, options);
 
-enum Position { POS_START, POS_ROOM1, POS_ROOM2 };
-Position currentPosition = POS_START;
+        client.on('connect', () => {
+            document.getElementById('status').innerText = 'Connected - Ready';
+            client.subscribe('sachin/esp32/nav/status');
+        });
 
-enum NavigationState { 
-  NAV_IDLE, 
-  NAV_LED_BLINK, 
-  NAV_MOVE_FORWARD, 
-  NAV_TURN_RIGHT, 
-  NAV_TURN_LEFT, 
-  NAV_MOVE_FORWARD_2, 
-  NAV_COMPLETE 
-};
-NavigationState navState = NAV_IDLE;
+        client.on('message', (topic, message) => {
+            document.getElementById('status').innerText = 'Status: ' + message.toString();
+        });
 
-int stepCounter = 0;
-int targetSteps = 0;
-int ledBlinkCount = 0;
-int targetLedBlinks = 0;
-unsigned long lastLedToggle = 0;
-unsigned long lastStepTime = 0;
-bool ledState = false;
-bool stepState = false;
-
-WiFiClientSecure espClient;
-PubSubClient client(espClient);
-
-// -------- FUNCTION PROTOTYPES --------
-void startNavigation(Position target, int blinks);
-void navigateToRoom1FromStart();
-void navigateToStartFromRoom1();
-void navigateToRoom2FromStart();
-void navigateToStartFromRoom2();
-void navigateRoom1ToRoom2();
-void navigateRoom2ToRoom1();
-
-String getPositionName(Position pos) {
-  switch(pos) {
-    case POS_START: return "START";
-    case POS_ROOM1: return "ROOM 1";
-    case POS_ROOM2: return "ROOM 2";
-    default: return "UNKNOWN";
-  }
-}
-
-// -------- MQTT CALLBACK --------
-void callback(char* topic, byte* payload, unsigned int length) {
-  String message = "";
-  for (int i = 0; i < length; i++) message += (char)payload[i];
-  
-  Serial.println("Command Received: " + message);
-
-  if (message == "START") startNavigation(POS_START, 2);
-  else if (message == "ROOM1") startNavigation(POS_ROOM1, 4);
-  else if (message == "ROOM2") startNavigation(POS_ROOM2, 3);
-  else if (message == "STOP") {
-    navState = NAV_IDLE;
-    digitalWrite(PWR_L, LOW);
-    digitalWrite(PWR_R, LOW);
-    client.publish(topic_nav_status, "STOPPED");
-    Serial.println("EMERGENCY STOP");
-  }
-}
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(PWR_L, OUTPUT); pinMode(DIR_L, OUTPUT);
-  pinMode(PWR_R, OUTPUT); pinMode(DIR_R, OUTPUT);
-
-  // Initial motor state
-  digitalWrite(PWR_L, LOW); digitalWrite(PWR_R, LOW);
-
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { 
-    delay(500); 
-    Serial.print("."); 
-  }
-  Serial.println("\nWiFi Connected!");
-
-  espClient.setInsecure(); // Required for HiveMQ Cloud SSL
-  client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(callback);
-}
-
-void reconnect() {
-  while (!client.connected()) {
-    String clientId = "ESP32_Wheelchair_" + String(random(0xffff), HEX);
-    Serial.print("Connecting to MQTT...");
-    if (client.connect(clientId.c_str(), mqtt_user, mqtt_password)) {
-      Serial.println("connected");
-      client.subscribe(topic_nav_control);
-      client.publish(topic_nav_status, "ONLINE");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      delay(5000);
-    }
-  }
-}
-
-void loop() {
-  if (!client.connected()) reconnect();
-  client.loop();
-
-  // --- LED Blinking Phase ---
-  if (navState == NAV_LED_BLINK) {
-    if (millis() - lastLedToggle >= 250) {
-      ledState = !ledState;
-      digitalWrite(LED_PIN, ledState);
-      lastLedToggle = millis();
-      if (!ledState) {
-        ledBlinkCount++;
-        if (ledBlinkCount >= targetLedBlinks) {
-          digitalWrite(LED_PIN, LOW);
-          navState = NAV_MOVE_FORWARD;
-          Serial.println("Blinking done. Moving...");
+        function sendCmd(cmd) {
+            client.publish('sachin/esp32/nav/control', cmd);
         }
-      }
-    }
-    return;
-  }
-
-  // --- Navigation Logic ---
-  if (navState != NAV_IDLE) {
-    if (currentPosition == POS_START && targetLedBlinks == 4) navigateToRoom1FromStart();
-    else if (currentPosition == POS_START && targetLedBlinks == 3) navigateToRoom2FromStart();
-    else if (currentPosition == POS_ROOM1 && targetLedBlinks == 2) navigateToStartFromRoom1();
-    else if (currentPosition == POS_ROOM2 && targetLedBlinks == 2) navigateToStartFromRoom2();
-    else if (currentPosition == POS_ROOM1 && targetLedBlinks == 3) navigateRoom1ToRoom2();
-    else if (currentPosition == POS_ROOM2 && targetLedBlinks == 4) navigateRoom2ToRoom1();
-
-    // Motor Stepping
-    unsigned long currentTime = micros();
-    if (currentTime - lastStepTime >= STEP_DELAY_US) {
-      stepState = !stepState;
-      digitalWrite(PWR_L, stepState);
-      digitalWrite(PWR_R, stepState);
-      if (!stepState) stepCounter++;
-      lastStepTime = currentTime;
-    }
-  }
-
-  // Periodic Status Update
-  static unsigned long lastUpdate = 0;
-  if (millis() - lastUpdate > 3000) {
-    String status = "At: " + getPositionName(currentPosition);
-    client.publish(topic_nav_status, status.c_str());
-    lastUpdate = millis();
-  }
-}
-
-// -------- NAVIGATION DEFINITIONS --------
-
-void startNavigation(Position target, int blinks) {
-  if (navState != NAV_IDLE) return;
-  targetLedBlinks = blinks;
-  ledBlinkCount = 0;
-  navState = NAV_LED_BLINK;
-}
-
-void navigateToRoom1FromStart() {
-  switch(navState) {
-    case NAV_MOVE_FORWARD:
-      digitalWrite(DIR_L, HIGH); digitalWrite(DIR_R, HIGH);
-      targetSteps = 10000; stepCounter = 0;
-      navState = NAV_TURN_RIGHT; break;
-    case NAV_TURN_RIGHT:
-      if (stepCounter >= targetSteps) {
-        digitalWrite(DIR_L, HIGH); digitalWrite(DIR_R, LOW);
-        targetSteps = TURN_STEPS; stepCounter = 0;
-        navState = NAV_MOVE_FORWARD_2;
-      } break;
-    case NAV_MOVE_FORWARD_2:
-      if (stepCounter >= targetSteps) {
-        digitalWrite(DIR_L, HIGH); digitalWrite(DIR_R, HIGH);
-        targetSteps = 1000; stepCounter = 0;
-        navState = NAV_COMPLETE;
-      } break;
-    case NAV_COMPLETE:
-      if (stepCounter >= targetSteps) {
-        currentPosition = POS_ROOM1; navState = NAV_IDLE;
-        client.publish(topic_nav_status, "Arrived at ROOM 1");
-      } break;
-  }
-}
-
-void navigateToStartFromRoom1() {
-  switch(navState) {
-    case NAV_MOVE_FORWARD:
-      digitalWrite(DIR_L, LOW); digitalWrite(DIR_R, LOW);
-      targetSteps = 1000; stepCounter = 0;
-      navState = NAV_TURN_LEFT; break;
-    case NAV_TURN_LEFT:
-      if (stepCounter >= targetSteps) {
-        digitalWrite(DIR_L, LOW); digitalWrite(DIR_R, HIGH);
-        targetSteps = TURN_STEPS; stepCounter = 0;
-        navState = NAV_MOVE_FORWARD_2;
-      } break;
-    case NAV_MOVE_FORWARD_2:
-      if (stepCounter >= targetSteps) {
-        digitalWrite(DIR_L, LOW); digitalWrite(DIR_R, LOW);
-        targetSteps = 10000; stepCounter = 0;
-        navState = NAV_COMPLETE;
-      } break;
-    case NAV_COMPLETE:
-      if (stepCounter >= targetSteps) {
-        currentPosition = POS_START; navState = NAV_IDLE;
-        client.publish(topic_nav_status, "Arrived at START");
-      } break;
-  }
-}
-
-void navigateToRoom2FromStart() {
-  switch(navState) {
-    case NAV_MOVE_FORWARD:
-      digitalWrite(DIR_L, HIGH); digitalWrite(DIR_R, HIGH);
-      targetSteps = 5000; stepCounter = 0;
-      navState = NAV_TURN_LEFT; break;
-    case NAV_TURN_LEFT:
-      if (stepCounter >= targetSteps) {
-        digitalWrite(DIR_L, LOW); digitalWrite(DIR_R, HIGH);
-        targetSteps = TURN_STEPS; stepCounter = 0;
-        navState = NAV_MOVE_FORWARD_2;
-      } break;
-    case NAV_MOVE_FORWARD_2:
-      if (stepCounter >= targetSteps) {
-        digitalWrite(DIR_L, HIGH); digitalWrite(DIR_R, HIGH);
-        targetSteps = 2000; stepCounter = 0;
-        navState = NAV_COMPLETE;
-      } break;
-    case NAV_COMPLETE:
-      if (stepCounter >= targetSteps) {
-        currentPosition = POS_ROOM2; navState = NAV_IDLE;
-        client.publish(topic_nav_status, "Arrived at ROOM 2");
-      } break;
-  }
-}
-
-void navigateToStartFromRoom2() {
-  switch(navState) {
-    case NAV_MOVE_FORWARD:
-      digitalWrite(DIR_L, LOW); digitalWrite(DIR_R, LOW);
-      targetSteps = 2000; stepCounter = 0;
-      navState = NAV_TURN_RIGHT; break;
-    case NAV_TURN_RIGHT:
-      if (stepCounter >= targetSteps) {
-        digitalWrite(DIR_L, HIGH); digitalWrite(DIR_R, LOW);
-        targetSteps = TURN_STEPS; stepCounter = 0;
-        navState = NAV_MOVE_FORWARD_2;
-      } break;
-    case NAV_MOVE_FORWARD_2:
-      if (stepCounter >= targetSteps) {
-        digitalWrite(DIR_L, LOW); digitalWrite(DIR_R, LOW);
-        targetSteps = 5000; stepCounter = 0;
-        navState = NAV_COMPLETE;
-      } break;
-    case NAV_COMPLETE:
-      if (stepCounter >= targetSteps) {
-        currentPosition = POS_START; navState = NAV_IDLE;
-        client.publish(topic_nav_status, "Arrived at START");
-      } break;
-  }
-}
-
-void navigateRoom1ToRoom2() {
-  if (currentPosition == POS_ROOM1) {
-    navigateToStartFromRoom1();
-    if (navState == NAV_IDLE && currentPosition == POS_START) {
-      startNavigation(POS_ROOM2, 3);
-    }
-  }
-}
-
-void navigateRoom2ToRoom1() {
-  if (currentPosition == POS_ROOM2) {
-    navigateToStartFromRoom2();
-    if (navState == NAV_IDLE && currentPosition == POS_START) {
-      startNavigation(POS_ROOM1, 4);
-    }
-  }
-}
+    </script>
+</body>
+</html>
