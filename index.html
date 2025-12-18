@@ -1,53 +1,446 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Wheelchair Mode Control</title>
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Wheelchair Controller</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <style>
-        body { text-align:center; font-family:Arial, sans-serif; background:#f4f4f4; padding:20px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 400px; margin: 20px auto; }
-        .btn { padding: 30px; font-size: 20px; border: none; border-radius: 12px; cursor: pointer; color: white; font-weight: bold; }
-        .fwd { background: #4CAF50; grid-column: span 2; }
-        .bck { background: #2196F3; grid-column: span 2; }
-        .lft { background: #9C27B0; }
-        .rgt { background: #FF9800; }
-        #status { font-size: 20px; margin: 20px; color: #333; font-weight: bold; }
-        .blink-key { font-size: 14px; color: #666; margin-top: 10px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .connection-status {
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .connection-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .connected {
+            background-color: #10b981;
+        }
+
+        .disconnected {
+            background-color: #ef4444;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-message {
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 24px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            min-height: 100px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .control-btn:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .control-btn .icon {
+            font-size: 36px;
+            margin-bottom: 5px;
+        }
+
+        .control-btn .label {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .control-btn .blink-count {
+            font-size: 11px;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+
+        #forwardBtn {
+            grid-column: 2;
+            grid-row: 1;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        #forwardBtn:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+        }
+
+        #leftBtn {
+            grid-column: 1;
+            grid-row: 2;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        }
+
+        #leftBtn:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+        }
+
+        #rightBtn {
+            grid-column: 3;
+            grid-row: 2;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        #rightBtn:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+        }
+
+        #backBtn {
+            grid-column: 2;
+            grid-row: 3;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        #backBtn:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+        }
+
+        .info-box {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(0);
+            animation: ripple-animation 0.6s ease-out;
+        }
+
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>🦽 Wheelchair Controls</h1>
-    <div id="status">Connecting to MQTT...</div>
+    <div class="container">
+        <h1>🦽 IoT Wheelchair</h1>
+        <p class="subtitle">ESP32 4-Button Control System</p>
 
-    <div class="grid">
-        <button class="btn fwd" onclick="send('F')">STRAIGHT (1 Blink)</button>
-        <button class="btn lft" onclick="send('L')">LEFT (3 Blinks)</button>
-        <button class="btn rgt" onclick="send('R')">RIGHT (4 Blinks)</button>
-        <button class="btn bck" onclick="send('B')">BACK (2 Blinks)</button>
+        <div class="status-panel">
+            <div class="connection-status">
+                <span id="indicator" class="connection-indicator disconnected"></span>
+                <span id="connectionText">Connecting...</span>
+            </div>
+            <div class="status-message" id="statusMessage">Initializing...</div>
+        </div>
+
+        <div class="control-grid">
+            <button id="forwardBtn" class="control-btn" onclick="sendCommand('F')" disabled>
+                <div class="icon">▲</div>
+                <div class="label">FORWARD</div>
+                <div class="blink-count">4 blinks</div>
+            </button>
+
+            <button id="leftBtn" class="control-btn" onclick="sendCommand('L')" disabled>
+                <div class="icon">◄</div>
+                <div class="label">LEFT</div>
+                <div class="blink-count">1 blink</div>
+            </button>
+
+            <button id="rightBtn" class="control-btn" onclick="sendCommand('R')" disabled>
+                <div class="icon">►</div>
+                <div class="label">RIGHT</div>
+                <div class="blink-count">2 blinks</div>
+            </button>
+
+            <button id="backBtn" class="control-btn" onclick="sendCommand('B')" disabled>
+                <div class="icon">▼</div>
+                <div class="label">BACKWARD</div>
+                <div class="blink-count">3 blinks</div>
+            </button>
+        </div>
+
+        <div class="info-box">
+            <strong>📡 System Info:</strong>
+            • Distance: 100,000 steps per command<br>
+            • Speed: Optimized (300μs step delay)<br>
+            • Steering: Differential (L/R motors opposing)
+        </div>
     </div>
 
-    <div class="blink-key">All movements travel exactly 1000 steps.</div>
-
     <script>
-        const broker = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
-        const client = mqtt.connect(broker, {
+        // MQTT Configuration - REPLACE WITH YOUR CREDENTIALS
+        const MQTT_CONFIG = {
+            host: 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt',
             username: 'wheel',
             password: 'Wheel123',
-            clientId: 'web_control_' + Math.random().toString(16).substr(2, 8)
-        });
+            clientId: 'WebController_' + Math.random().toString(16).substr(2, 8)
+        };
 
-        client.on('connect', () => {
-            document.getElementById('status').innerText = "Connected - Ready";
-            client.subscribe('sachin/esp32/nav/status');
-        });
+        const TOPICS = {
+            control: 'sachin/esp32/nav/control',
+            status: 'sachin/esp32/nav/status'
+        };
 
-        client.on('message', (topic, message) => {
-            document.getElementById('status').innerText = message.toString();
-        });
+        let client;
+        let isMoving = false;
 
-        function send(mode) {
-            client.publish('sachin/esp32/nav/control', mode);
+        // Connect to MQTT Broker
+        function connectMQTT() {
+            console.log('Connecting to HiveMQ Cloud...');
+            
+            client = mqtt.connect(MQTT_CONFIG.host, {
+                username: MQTT_CONFIG.username,
+                password: MQTT_CONFIG.password,
+                clientId: MQTT_CONFIG.clientId,
+                clean: true,
+                reconnectPeriod: 5000
+            });
+
+            client.on('connect', () => {
+                console.log('✅ Connected to MQTT broker');
+                updateConnectionStatus(true);
+                updateStatus('Connected - Ready for commands');
+                
+                // Subscribe to status updates
+                client.subscribe(TOPICS.status, (err) => {
+                    if (!err) {
+                        console.log('📡 Subscribed to status topic');
+                    }
+                });
+            });
+
+            client.on('message', (topic, message) => {
+                const msg = message.toString();
+                console.log('📨 Status update:', msg);
+                updateStatus(msg);
+                
+                // Re-enable buttons when movement is complete
+                if (msg.includes('Complete') || msg.includes('Ready')) {
+                    isMoving = false;
+                    enableButtons(true);
+                } else if (msg.includes('Blinking') || msg.includes('Moving')) {
+                    isMoving = true;
+                    enableButtons(false);
+                }
+            });
+
+            client.on('error', (error) => {
+                console.error('❌ MQTT Error:', error);
+                updateConnectionStatus(false);
+                updateStatus('Connection Error');
+            });
+
+            client.on('offline', () => {
+                console.log('📴 MQTT Offline');
+                updateConnectionStatus(false);
+                updateStatus('Disconnected');
+                enableButtons(false);
+            });
+
+            client.on('reconnect', () => {
+                console.log('🔄 Reconnecting...');
+                updateStatus('Reconnecting...');
+            });
         }
+
+        // Send command to ESP32
+        function sendCommand(direction) {
+            if (!client || !client.connected || isMoving) {
+                console.warn('Cannot send command - not connected or busy');
+                return;
+            }
+
+            const directionNames = {
+                'F': 'Forward',
+                'B': 'Backward',
+                'L': 'Left Turn',
+                'R': 'Right Turn'
+            };
+
+            console.log(`🎮 Sending command: ${direction} (${directionNames[direction]})`);
+            
+            client.publish(TOPICS.control, direction, { qos: 1 }, (err) => {
+                if (err) {
+                    console.error('Failed to send command:', err);
+                    updateStatus('Command failed!');
+                } else {
+                    updateStatus(`Command sent: ${directionNames[direction]}`);
+                    isMoving = true;
+                    enableButtons(false);
+                    addRippleEffect(event.currentTarget);
+                }
+            });
+        }
+
+        // Update connection status indicator
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('indicator');
+            const text = document.getElementById('connectionText');
+            
+            if (connected) {
+                indicator.className = 'connection-indicator connected';
+                text.textContent = 'Connected to HiveMQ';
+                enableButtons(true);
+            } else {
+                indicator.className = 'connection-indicator disconnected';
+                text.textContent = 'Disconnected';
+                enableButtons(false);
+            }
+        }
+
+        // Update status message
+        function updateStatus(message) {
+            document.getElementById('statusMessage').textContent = message;
+        }
+
+        // Enable/disable control buttons
+        function enableButtons(enabled) {
+            const buttons = ['forwardBtn', 'backBtn', 'leftBtn', 'rightBtn'];
+            buttons.forEach(id => {
+                document.getElementById(id).disabled = !enabled;
+            });
+        }
+
+        // Visual ripple effect on button click
+        function addRippleEffect(button) {
+            const ripple = document.createElement('span');
+            ripple.classList.add('ripple');
+            
+            const rect = button.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = event.clientX - rect.left - size / 2 + 'px';
+            ripple.style.top = event.clientY - rect.top - size / 2 + 'px';
+            
+            button.appendChild(ripple);
+            
+            setTimeout(() => ripple.remove(), 600);
+        }
+
+        // Keyboard controls (Arrow keys)
+        document.addEventListener('keydown', (e) => {
+            if (isMoving || !client || !client.connected) return;
+            
+            const keyMap = {
+                'ArrowUp': 'F',
+                'ArrowDown': 'B',
+                'ArrowLeft': 'L',
+                'ArrowRight': 'R'
+            };
+            
+            if (keyMap[e.key]) {
+                e.preventDefault();
+                sendCommand(keyMap[e.key]);
+            }
+        });
+
+        // Initialize connection on page load
+        window.addEventListener('load', () => {
+            connectMQTT();
+        });
     </script>
 </body>
 </html>
