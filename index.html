@@ -1,67 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Wheelchair Joystick</title>
+    <title>4-Mode Wheelchair Control</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.9.0/nipplejs.min.js"></script>
     <style>
-        body { text-align:center; font-family:Arial; background:#f4f4f4; touch-action: none; overflow: hidden; }
-        #joystick-zone { 
-            width: 100%; height: 400px; background: #fff; 
-            position: relative; margin: 20px 0; border-radius: 20px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
-        }
-        .info { font-size: 20px; font-weight: bold; color: #333; margin-top: 20px; }
-        #status { color: #1976D2; }
+        body { text-align:center; font-family:Arial, sans-serif; background:#f0f2f5; padding:20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 400px; margin: 0 auto; }
+        .btn { padding: 30px; font-size: 20px; border: none; border-radius: 15px; cursor: pointer; color: white; font-weight: bold; }
+        .straight { background: #4CAF50; grid-column: span 2; }
+        .back { background: #2196F3; grid-column: span 2; }
+        .left { background: #9C27B0; }
+        .right { background: #FF9800; }
+        #status { font-size: 22px; margin: 30px; color: #1976D2; font-weight: bold; }
+        .blink-info { font-size: 14px; color: #666; margin-bottom: 20px; }
     </style>
 </head>
 <body>
-    <h1>🦽 Wheelchair Remote Control</h1>
-    <div class="info">Status: <span id="status">Connecting...</span></div>
+    <h1>🦽 Wheelchair Modes</h1>
+    <div id="status">Connecting...</div>
+    <div class="blink-info">Straight (1) | Back (2) | Left (3) | Right (4)</div>
 
-    <div id="joystick-zone"></div>
+    <div class="grid">
+        <button class="btn straight" onclick="send('F')">⬆️ STRAIGHT</button>
+        <button class="btn left" onclick="send('L')">⬅️ LEFT</button>
+        <button class="btn right" onclick="send('R')">➡️ RIGHT</button>
+        <button class="btn back" onclick="send('B')">⬇️ BACK</button>
+    </div>
 
     <script>
         const broker = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
-        const options = {
+        const client = mqtt.connect(broker, {
             username: 'wheel',
             password: 'Wheel123',
-            clientId: 'web_joy_' + Math.random().toString(16).substr(2, 8)
-        };
-
-        const client = mqtt.connect(broker, options);
-        const statusEl = document.getElementById('status');
-
-        client.on('connect', () => { statusEl.innerText = "Connected - Use Joystick"; });
-
-        // Initialize Virtual Joystick
-        const manager = nipplejs.create({
-            zone: document.getElementById('joystick-zone'),
-            mode: 'static',
-            position: { left: '50%', top: '50%' },
-            color: '#1976D2',
-            size: 200
+            clientId: 'web_mode_' + Math.random().toString(16).substr(2, 8)
         });
 
-        let currentDir = "";
-
-        manager.on('dir:up dir:down dir:left dir:right', (evt, data) => {
-            let newDir = "";
-            if (data.direction.angle === 'up') newDir = "JOY:F";
-            else if (data.direction.angle === 'down') newDir = "JOY:B";
-            else if (data.direction.angle === 'left') newDir = "JOY:L";
-            else if (data.direction.angle === 'right') newDir = "JOY:R";
-
-            if (newDir !== currentDir) {
-                currentDir = newDir;
-                client.publish('sachin/esp32/nav/control', currentDir);
-            }
+        client.on('connect', () => {
+            document.getElementById('status').innerText = "Connected - Select Mode";
+            client.subscribe('sachin/esp32/nav/status');
         });
 
-        manager.on('end', () => {
-            currentDir = "";
-            client.publish('sachin/esp32/nav/control', 'STOP');
+        client.on('message', (topic, message) => {
+            document.getElementById('status').innerText = message.toString();
         });
+
+        function send(mode) {
+            client.publish('sachin/esp32/nav/control', mode);
+        }
     </script>
 </body>
 </html>
