@@ -1,135 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Wheelchair MQTT Control</title>
+    <title>Wheelchair Joystick Control</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.9.0/nipplejs.min.js"></script>
     <style>
-        body { 
-            text-align:center; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background:#f0f2f5; 
-            padding:20px; 
+        body { text-align:center; font-family:Arial; background:#f0f0f0; touch-action: none; }
+        #joystick-zone { 
+            width: 100%; height: 300px; background: #ddd; 
+            position: relative; margin: 20px 0; border-radius: 20px;
         }
-        h1 { color: #333; }
-        .section { 
-            margin: 20px auto; 
-            padding: 25px; 
-            background: white; 
-            border-radius: 15px; 
-            max-width: 450px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+        .stop-btn { 
+            background:#f44336; color:white; padding:20px; width:80%; 
+            font-size:24px; border:none; border-radius:10px; cursor:pointer; 
         }
-        button { 
-            font-size:18px; 
-            padding:15px; 
-            margin:10px; 
-            width: 85%; 
-            border-radius:10px; 
-            border:none; 
-            cursor:pointer; 
-            color:white; 
-            font-weight: bold;
-            transition: transform 0.1s, opacity 0.2s;
-        }
-        button:active { transform: scale(0.98); }
-        .start { background:#4CAF50; }
-        .room1 { background:#9C27B0; }
-        .room2 { background:#FF9800; }
-        .stop { background:#f44336; margin-top: 20px; }
-        #status-container {
-            margin: 20px auto;
-            max-width: 450px;
-            padding: 15px;
-            background: #e3f2fd;
-            border-radius: 10px;
-            border-left: 5px solid #1976D2;
-        }
-        #status { font-size:20px; font-weight:bold; color:#1976D2; }
-        .debug-log { font-size: 12px; color: #666; margin-top: 10px; }
+        #status { font-size:18px; color:#1976D2; margin: 10px; }
     </style>
 </head>
 <body>
-    <h1>🦽 Wheelchair Navigation</h1>
-    
-    <div id="status-container">
-        <div id="status">Connecting to MQTT...</div>
-        <div id="debug" class="debug-log">Initializing...</div>
-    </div>
+    <h1>🦽 Manual Joystick Control</h1>
+    <div id="status">Connecting...</div>
 
-    <div class="section">
-        <h2>Navigate</h2>
-        <button class="start" onclick="sendCmd('START')">🏠 GO TO START</button>
-        <button class="room1" onclick="sendCmd('ROOM1')">🚪 GO TO ROOM 1</button>
-        <button class="room2" onclick="sendCmd('ROOM2')">🚪 GO TO ROOM 2</button>
-    </div>
+    <div id="joystick-zone"></div>
 
-    <div class="section" style="border: 2px solid #f44336;">
-        <h2>Emergency</h2>
-        <button class="stop" onclick="sendCmd('STOP')">🛑 EMERGENCY STOP</button>
-    </div>
+    <button class="stop-btn" onclick="sendCmd('STOP')">STOP ALL</button>
 
     <script>
-        // Use Port 8884 and the /mqtt path for HiveMQ Cloud WebSockets
         const broker = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
-        
-        const options = {
-            username: 'wheel', // Matches your ESP32 code
+        const client = mqtt.connect(broker, {
+            username: 'wheel',
             password: 'Wheel123',
-            keepalive: 60,
-            clientId: 'web_' + Math.random().toString(16).substr(2, 8),
-            protocolId: 'MQTT',
-            protocolVersion: 4,
-            clean: true,
-            reconnectPeriod: 1000,
-            connectTimeout: 30 * 1000,
-        };
-
-        const debugEl = document.getElementById('debug');
-        const statusEl = document.getElementById('status');
-
-        debugEl.innerText = "Connecting to: " + broker;
-        const client = mqtt.connect(broker, options);
-
-        client.on('connect', () => {
-            debugEl.innerText = "Connected to HiveMQ Cloud Cluster";
-            statusEl.innerText = 'Connected - Ready';
-            // Subscribing to the status topic your ESP32 publishes to
-            client.subscribe('sachin/esp32/nav/status');
+            clientId: 'web_joy_' + Math.random().toString(16).substr(2, 8)
         });
 
-        client.on('message', (topic, message) => {
-            const msg = message.toString();
-            console.log("Status Update: ", msg);
-            statusEl.innerText = 'Status: ' + msg;
-            
-            // Visual feedback for arrival
-            if(msg.includes("Arrived")) {
-                statusEl.style.color = "#28a745";
-            } else {
-                statusEl.style.color = "#1976D2";
+        client.on('connect', () => { document.getElementById('status').innerText = "Connected"; });
+
+        // Initialize Joystick
+        const manager = nipplejs.create({
+            zone: document.getElementById('joystick-zone'),
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
+            color: 'blue',
+            size: 150
+        });
+
+        let lastSend = 0;
+        manager.on('move', (evt, data) => {
+            const now = Date.now();
+            if (now - lastSend > 100) { // Throttle to 10 messages per second
+                const x = Math.round(data.instance.frontPosition.x);
+                const y = Math.round(data.instance.frontPosition.y) * -1;
+                client.publish('sachin/esp32/nav/control', `JOY:${x},${y}`);
+                lastSend = now;
             }
         });
 
-        client.on('error', (err) => {
-            console.error('Connection error: ', err);
-            statusEl.innerText = 'Connection Error';
-            debugEl.innerText = err.message;
-        });
+        manager.on('end', () => { client.publish('sachin/esp32/nav/control', 'STOP'); });
 
-        client.on('offline', () => {
-            statusEl.innerText = 'Broker Offline';
-        });
-
-        function sendCmd(cmd) {
-            if (client.connected) {
-                console.log("Sending Command: " + cmd);
-                // Topic matches topic_nav_control in your ESP32 code
-                client.publish('sachin/esp32/nav/control', cmd, { qos: 1 });
-                statusEl.innerText = 'Command Sent: ' + cmd;
-            } else {
-                alert("Not connected to MQTT broker!");
-            }
-        }
+        function sendCmd(cmd) { client.publish('sachin/esp32/nav/control', cmd); }
     </script>
 </body>
 </html>
