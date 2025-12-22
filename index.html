@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IoT Wheelchair Controller</title>
+    <title>IoT Wheelchair Controller v2.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <style>
         * {
@@ -34,8 +34,16 @@
         h1 {
             text-align: center;
             color: #333;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             font-size: 28px;
+        }
+
+        .version {
+            text-align: center;
+            color: #10b981;
+            font-weight: 700;
+            font-size: 12px;
+            margin-bottom: 5px;
         }
 
         .subtitle {
@@ -92,7 +100,7 @@
         .control-grid {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            grid-template-rows: auto auto auto;
+            grid-template-rows: auto auto auto auto;
             gap: 15px;
             margin-bottom: 20px;
         }
@@ -142,7 +150,7 @@
             font-weight: 600;
         }
 
-        .control-btn .blink-count {
+        .control-btn .info {
             font-size: 11px;
             opacity: 0.8;
             margin-top: 3px;
@@ -192,6 +200,59 @@
             box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
         }
 
+        #stopBtn {
+            grid-column: 2;
+            grid-row: 4;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.6);
+            border: 3px solid #fef2f2;
+            font-size: 20px;
+            animation: emergency-pulse 2s infinite;
+        }
+
+        #stopBtn:hover:not(:disabled) {
+            box-shadow: 0 8px 25px rgba(220, 38, 38, 0.8);
+            transform: translateY(-3px);
+        }
+
+        #stopBtn .icon {
+            font-size: 32px;
+        }
+
+        @keyframes emergency-pulse {
+            0%, 100% { 
+                box-shadow: 0 4px 15px rgba(220, 38, 38, 0.6);
+            }
+            50% { 
+                box-shadow: 0 6px 25px rgba(220, 38, 38, 0.9);
+            }
+        }
+
+        .feature-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin: 5px 5px;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .feature-badge.override {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .feature-badge.stop {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .features-section {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
         .info-box {
             background: #f3f4f6;
             padding: 15px;
@@ -199,6 +260,7 @@
             font-size: 13px;
             color: #666;
             line-height: 1.6;
+            margin-bottom: 15px;
         }
 
         .info-box strong {
@@ -213,7 +275,6 @@
             padding: 15px;
             border-radius: 8px;
             font-size: 13px;
-            margin-top: 15px;
             line-height: 1.6;
             text-align: center;
             font-weight: 600;
@@ -222,6 +283,34 @@
         .safety-warning .icon {
             font-size: 24px;
             margin-bottom: 5px;
+        }
+
+        .override-indicator {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+
+        .override-indicator.active {
+            display: block;
+            animation: slide-down 0.3s ease-out;
+        }
+
+        @keyframes slide-down {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .ripple {
@@ -243,7 +332,14 @@
 <body>
     <div class="container">
         <h1>🦽 IoT Wheelchair</h1>
-        <p class="subtitle">ESP32 4-Button Control System</p>
+        <div class="version">v2.0 - DIRECTION OVERRIDE ENABLED</div>
+        <p class="subtitle">ESP32 Advanced Control System</p>
+
+        <div class="features-section">
+            <span class="feature-badge override">⚡ Live Override</span>
+            <span class="feature-badge stop">🛑 Emergency Stop</span>
+            <span class="feature-badge">🔄 Non-Blocking</span>
+        </div>
 
         <div class="status-panel">
             <div class="connection-status">
@@ -253,49 +349,70 @@
             <div class="status-message" id="statusMessage">Initializing...</div>
         </div>
 
+        <div class="override-indicator" id="overrideIndicator">
+            ⚡ DIRECTION OVERRIDE ACTIVE - Commands work while moving!
+        </div>
+
         <div class="control-grid">
             <button id="forwardBtn" class="control-btn" onclick="sendCommand('F')" disabled>
                 <div class="icon">▲</div>
                 <div class="label">FORWARD</div>
-                <div class="blink-count">4 blinks</div>
+                <div class="info">Instant override</div>
             </button>
 
             <button id="leftBtn" class="control-btn" onclick="sendCommand('L')" disabled>
                 <div class="icon">◄</div>
                 <div class="label">LEFT</div>
-                <div class="blink-count">1 blink</div>
+                <div class="info">Differential turn</div>
             </button>
 
             <button id="rightBtn" class="control-btn" onclick="sendCommand('R')" disabled>
                 <div class="icon">►</div>
                 <div class="label">RIGHT</div>
-                <div class="blink-count">2 blinks</div>
+                <div class="info">Differential turn</div>
             </button>
 
             <button id="backBtn" class="control-btn" onclick="sendCommand('B')" disabled>
                 <div class="icon">▼</div>
                 <div class="label">BACKWARD</div>
-                <div class="blink-count">3 blinks</div>
+                <div class="info">Instant override</div>
+            </button>
+
+            <button id="stopBtn" class="control-btn" onclick="sendCommand('STOP')" disabled>
+                <div class="icon">🛑</div>
+                <div class="label">EMERGENCY STOP</div>
+                <div class="info">Press SPACE key</div>
             </button>
         </div>
 
         <div class="info-box">
-            <strong>📡 System Info:</strong>
-            • Distance: 100,000 steps per command<br>
-            • Speed: Optimized (75μs step delay)<br>
-            • Steering: Differential (L/R motors opposing)
+            <strong>⚡ NEW FEATURES:</strong>
+            • <strong>Direction Override:</strong> Send new direction anytime - no waiting!<br>
+            • <strong>Emergency Stop:</strong> STOP command or SPACE key halts all motion<br>
+            • <strong>Non-Blocking Sensors:</strong> Obstacle detection works at full speed<br>
+            • <strong>Auto-Resume:</strong> Clears after 2 seconds when path is safe
+        </div>
+
+        <div class="info-box">
+            <strong>📡 System Specs:</strong>
+            • Distance: 100,000 steps per command (resets on override)<br>
+            • Speed: 75μs step delay (13,333 steps/sec)<br>
+            • Steering: Differential (opposing motor directions)<br>
+            • Obstacle Range: 75cm automatic emergency stop
         </div>
 
         <div class="safety-warning">
             <div class="icon">🛡️</div>
-            <strong>EMERGENCY STOP ACTIVE</strong><br>
-            Auto-stops at 75cm obstacle detection<br>
-            Resumes automatically when clear
+            <strong>SAFETY SYSTEMS ACTIVE</strong><br>
+            Auto-stops at obstacles | Manual emergency stop ready<br>
+            Direction changes are instant and safe
         </div>
     </div>
 
     <script>
-        // MQTT Configuration - REPLACE WITH YOUR CREDENTIALS
+        // ============================================================
+        //  MQTT CONFIGURATION
+        // ============================================================
         const MQTT_CONFIG = {
             host: 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt',
             username: 'wheel',
@@ -310,10 +427,14 @@
 
         let client;
         let isMoving = false;
+        let lastCommand = '';
+        let overrideEnabled = false;
 
-        // Connect to MQTT Broker
+        // ============================================================
+        //  MQTT CONNECTION
+        // ============================================================
         function connectMQTT() {
-            console.log('Connecting to HiveMQ Cloud...');
+            console.log('🔌 Connecting to HiveMQ Cloud...');
             
             client = mqtt.connect(MQTT_CONFIG.host, {
                 username: MQTT_CONFIG.username,
@@ -326,28 +447,36 @@
             client.on('connect', () => {
                 console.log('✅ Connected to MQTT broker');
                 updateConnectionStatus(true);
-                updateStatus('Connected - Ready for commands');
+                updateStatus('Connected - Direction override ready!');
                 
                 // Subscribe to status updates
                 client.subscribe(TOPICS.status, (err) => {
                     if (!err) {
-                        console.log('📡 Subscribed to status topic');
+                        console.log('📡 Subscribed to status updates');
+                        showOverrideIndicator();
                     }
                 });
             });
 
             client.on('message', (topic, message) => {
                 const msg = message.toString();
-                console.log('📨 Status update:', msg);
+                console.log('📨 Status:', msg);
                 updateStatus(msg);
                 
-                // Re-enable buttons when movement is complete
-                if (msg.includes('Complete') || msg.includes('Ready')) {
-                    isMoving = false;
-                    enableButtons(true);
-                } else if (msg.includes('Blinking') || msg.includes('Moving')) {
+                // Track movement state
+                if (msg.includes('Moving') || msg.includes('override')) {
                     isMoving = true;
-                    enableButtons(false);
+                    overrideEnabled = true;
+                    // Keep buttons enabled for override!
+                    enableButtons(true);
+                } else if (msg.includes('Complete') || msg.includes('ready') || msg.includes('Ready')) {
+                    isMoving = false;
+                    overrideEnabled = false;
+                    enableButtons(true);
+                } else if (msg.includes('EMERGENCY') || msg.includes('STOP')) {
+                    isMoving = false;
+                    overrideEnabled = false;
+                    enableButtons(true); // Can send new commands after emergency
                 }
             });
 
@@ -370,10 +499,12 @@
             });
         }
 
-        // Send command to ESP32
+        // ============================================================
+        //  SEND COMMAND (WITH OVERRIDE SUPPORT)
+        // ============================================================
         function sendCommand(direction) {
-            if (!client || !client.connected || isMoving) {
-                console.warn('Cannot send command - not connected or busy');
+            if (!client || !client.connected) {
+                console.warn('⚠️ Not connected to MQTT');
                 return;
             }
 
@@ -381,25 +512,39 @@
                 'F': 'Forward',
                 'B': 'Backward',
                 'L': 'Left Turn',
-                'R': 'Right Turn'
+                'R': 'Right Turn',
+                'STOP': 'EMERGENCY STOP'
             };
 
-            console.log(`🎮 Sending command: ${direction} (${directionNames[direction]})`);
+            // Show override message if already moving
+            let statusPrefix = '';
+            if (isMoving && direction !== 'STOP') {
+                statusPrefix = '⚡ OVERRIDE: ';
+                console.log('⚡ DIRECTION OVERRIDE TRIGGERED');
+            }
+
+            console.log(`🎮 Sending: ${direction} (${directionNames[direction]})`);
             
             client.publish(TOPICS.control, direction, { qos: 1 }, (err) => {
                 if (err) {
                     console.error('Failed to send command:', err);
                     updateStatus('Command failed!');
                 } else {
-                    updateStatus(`Command sent: ${directionNames[direction]}`);
-                    isMoving = true;
-                    enableButtons(false);
+                    updateStatus(statusPrefix + directionNames[direction]);
+                    lastCommand = direction;
+                    
+                    if (direction !== 'STOP') {
+                        isMoving = true;
+                    }
+                    
                     addRippleEffect(event.currentTarget);
                 }
             });
         }
 
-        // Update connection status indicator
+        // ============================================================
+        //  UI UPDATE FUNCTIONS
+        // ============================================================
         function updateConnectionStatus(connected) {
             const indicator = document.getElementById('indicator');
             const text = document.getElementById('connectionText');
@@ -415,20 +560,21 @@
             }
         }
 
-        // Update status message
         function updateStatus(message) {
             document.getElementById('statusMessage').textContent = message;
         }
 
-        // Enable/disable control buttons
         function enableButtons(enabled) {
-            const buttons = ['forwardBtn', 'backBtn', 'leftBtn', 'rightBtn'];
+            const buttons = ['forwardBtn', 'backBtn', 'leftBtn', 'rightBtn', 'stopBtn'];
             buttons.forEach(id => {
                 document.getElementById(id).disabled = !enabled;
             });
         }
 
-        // Visual ripple effect on button click
+        function showOverrideIndicator() {
+            document.getElementById('overrideIndicator').classList.add('active');
+        }
+
         function addRippleEffect(button) {
             const ripple = document.createElement('span');
             ripple.classList.add('ripple');
@@ -444,15 +590,19 @@
             setTimeout(() => ripple.remove(), 600);
         }
 
-        // Keyboard controls (Arrow keys)
+        // ============================================================
+        //  KEYBOARD CONTROLS (WITH EMERGENCY STOP)
+        // ============================================================
         document.addEventListener('keydown', (e) => {
-            if (isMoving || !client || !client.connected) return;
+            if (!client || !client.connected) return;
             
             const keyMap = {
                 'ArrowUp': 'F',
                 'ArrowDown': 'B',
                 'ArrowLeft': 'L',
-                'ArrowRight': 'R'
+                'ArrowRight': 'R',
+                ' ': 'STOP',          // SPACE key
+                'Escape': 'STOP'      // ESC key
             };
             
             if (keyMap[e.key]) {
@@ -461,8 +611,11 @@
             }
         });
 
-        // Initialize connection on page load
+        // ============================================================
+        //  INITIALIZATION
+        // ============================================================
         window.addEventListener('load', () => {
+            console.log('🚀 IoT Wheelchair Controller v2.0 - Direction Override Enabled');
             connectMQTT();
         });
     </script>
