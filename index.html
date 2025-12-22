@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IoT Wheelchair Controller v2.0</title>
+    <title>Wheelchair Navigation Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <style>
         * {
@@ -14,125 +14,199 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
-        }
-
-        .container {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 500px;
-            width: 100%;
-        }
-
-        h1 {
-            text-align: center;
             color: #333;
-            margin-bottom: 5px;
-            font-size: 28px;
         }
 
-        .version {
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
             text-align: center;
-            color: #10b981;
-            font-weight: 700;
-            font-size: 12px;
-            margin-bottom: 5px;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-
-        .status-panel {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
-            border-radius: 12px;
             margin-bottom: 30px;
-            text-align: center;
         }
 
-        .connection-status {
-            font-size: 14px;
+        .header h1 {
+            font-size: 36px;
             margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title .icon {
+            font-size: 24px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
             font-weight: 600;
         }
 
-        .connection-indicator {
-            display: inline-block;
+        .status-online {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-moving {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-emergency {
+            background: #fee2e2;
+            color: #991b1b;
+            animation: pulse-emergency 1s infinite;
+        }
+
+        @keyframes pulse-emergency {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .connection-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            margin-right: 8px;
-            animation: pulse 2s infinite;
+            display: inline-block;
         }
 
-        .connected {
-            background-color: #10b981;
+        .dot-green {
+            background: #10b981;
+            animation: pulse-dot 2s infinite;
         }
 
-        .disconnected {
-            background-color: #ef4444;
-            animation: none;
+        .dot-red {
+            background: #ef4444;
         }
 
-        @keyframes pulse {
+        @keyframes pulse-dot {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
 
-        .status-message {
-            font-size: 18px;
-            font-weight: bold;
-            min-height: 24px;
+        .metric {
+            margin: 15px 0;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e40af;
+        }
+
+        .metric-unit {
+            font-size: 16px;
+            color: #6b7280;
+            font-weight: 400;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1e40af);
+            transition: width 0.5s ease;
+            border-radius: 6px;
         }
 
         .control-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            grid-template-rows: auto auto auto auto;
-            gap: 15px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
         }
 
         .control-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
             border: none;
             border-radius: 12px;
             color: white;
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 16px;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 20px;
-            min-height: 100px;
-            position: relative;
-            overflow: hidden;
+            gap: 8px;
         }
 
         .control-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-        }
-
-        .control-btn:active:not(:disabled) {
-            transform: translateY(0);
-            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
         }
 
         .control-btn:disabled {
@@ -140,301 +214,370 @@
             cursor: not-allowed;
         }
 
-        .control-btn .icon {
-            font-size: 36px;
-            margin-bottom: 5px;
+        .control-btn .btn-icon {
+            font-size: 28px;
         }
 
-        .control-btn .label {
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .control-btn .info {
-            font-size: 11px;
-            opacity: 0.8;
-            margin-top: 3px;
-        }
-
-        #forwardBtn {
+        .btn-forward {
+            background: linear-gradient(135deg, #10b981, #059669);
             grid-column: 2;
-            grid-row: 1;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
         }
 
-        #forwardBtn:hover:not(:disabled) {
-            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+        .btn-left {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
         }
 
-        #leftBtn {
-            grid-column: 1;
-            grid-row: 2;
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        .btn-right {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
         }
 
-        #leftBtn:hover:not(:disabled) {
-            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
-        }
-
-        #rightBtn {
-            grid-column: 3;
-            grid-row: 2;
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-        }
-
-        #rightBtn:hover:not(:disabled) {
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
-        }
-
-        #backBtn {
+        .btn-backward {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
             grid-column: 2;
-            grid-row: 3;
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
         }
 
-        #backBtn:hover:not(:disabled) {
-            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+        .btn-stop {
+            background: linear-gradient(135deg, #991b1b, #7f1d1d);
+            grid-column: 1 / -1;
+            animation: stop-pulse 2s infinite;
         }
 
-        #stopBtn {
-            grid-column: 2;
-            grid-row: 4;
-            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.6);
-            border: 3px solid #fef2f2;
-            font-size: 20px;
-            animation: emergency-pulse 2s infinite;
+        @keyframes stop-pulse {
+            0%, 100% { box-shadow: 0 4px 15px rgba(153, 27, 27, 0.4); }
+            50% { box-shadow: 0 6px 25px rgba(153, 27, 27, 0.7); }
         }
 
-        #stopBtn:hover:not(:disabled) {
-            box-shadow: 0 8px 25px rgba(220, 38, 38, 0.8);
-            transform: translateY(-3px);
+        .room-btn {
+            padding: 15px;
+            border: 2px solid #3b82f6;
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        #stopBtn .icon {
-            font-size: 32px;
+        .room-btn:hover:not(:disabled) {
+            background: #eff6ff;
+            transform: translateX(5px);
         }
 
-        @keyframes emergency-pulse {
-            0%, 100% { 
-                box-shadow: 0 4px 15px rgba(220, 38, 38, 0.6);
-            }
-            50% { 
-                box-shadow: 0 6px 25px rgba(220, 38, 38, 0.9);
-            }
+        .room-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
-        .feature-badge {
-            display: inline-block;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
+        .room-name {
             font-weight: 700;
-            margin: 5px 5px;
-            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+            color: #1e40af;
         }
 
-        .feature-badge.override {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        .room-coords {
+            font-size: 13px;
+            color: #6b7280;
         }
 
-        .feature-badge.stop {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        .pid-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
         }
 
-        .features-section {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-
-        .info-box {
+        .pid-item {
             background: #f3f4f6;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #666;
-            line-height: 1.6;
-            margin-bottom: 15px;
-        }
-
-        .info-box strong {
-            color: #333;
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        .safety-warning {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 13px;
-            line-height: 1.6;
-            text-align: center;
-            font-weight: 600;
-        }
-
-        .safety-warning .icon {
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-
-        .override-indicator {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: white;
             padding: 12px;
             border-radius: 8px;
-            font-size: 13px;
-            margin-bottom: 15px;
             text-align: center;
-            font-weight: 600;
-            display: none;
         }
 
-        .override-indicator.active {
-            display: block;
-            animation: slide-down 0.3s ease-out;
+        .pid-label {
+            font-size: 12px;
+            color: #6b7280;
         }
 
-        @keyframes slide-down {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .pid-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e40af;
         }
 
-        .ripple {
+        .log-container {
+            background: #1f2937;
+            border-radius: 12px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .log-entry {
+            color: #d1d5db;
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #3b82f6;
+            padding-left: 10px;
+        }
+
+        .log-entry.error {
+            border-left-color: #ef4444;
+            color: #fca5a5;
+        }
+
+        .log-entry.success {
+            border-left-color: #10b981;
+            color: #6ee7b7;
+        }
+
+        .visual-map {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            height: 300px;
+            overflow: hidden;
+        }
+
+        .map-grid {
             position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.6);
-            transform: scale(0);
-            animation: ripple-animation 0.6s ease-out;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(#e5e7eb 1px, transparent 1px),
+                linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+            background-size: 30px 30px;
         }
 
-        @keyframes ripple-animation {
-            to {
-                transform: scale(4);
-                opacity: 0;
-            }
+        .wheelchair-icon {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            transition: all 0.5s ease;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5);
+            bottom: 20px;
+            left: 20px;
+        }
+
+        .room-marker {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.5);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🦽 IoT Wheelchair</h1>
-        <div class="version">v2.0 - DIRECTION OVERRIDE ENABLED</div>
-        <p class="subtitle">ESP32 Advanced Control System</p>
-
-        <div class="features-section">
-            <span class="feature-badge override">⚡ Live Override</span>
-            <span class="feature-badge stop">🛑 Emergency Stop</span>
-            <span class="feature-badge">🔄 Non-Blocking</span>
+    <div class="dashboard">
+        <div class="header">
+            <h1>🦽 Wheelchair Navigation Dashboard</h1>
+            <p class="subtitle">Real-time Map Navigation with PID Line Following</p>
         </div>
 
-        <div class="status-panel">
-            <div class="connection-status">
-                <span id="indicator" class="connection-indicator disconnected"></span>
-                <span id="connectionText">Connecting...</span>
+        <div class="grid">
+            <!-- Connection Status -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">📡</span>
+                    Connection Status
+                </div>
+                <div class="status-indicator" id="connectionStatus">
+                    <span class="connection-dot dot-red"></span>
+                    <span>Connecting...</span>
+                </div>
+                <div style="margin-top: 15px;">
+                    <div class="metric-label">System State</div>
+                    <div id="systemState" class="status-indicator status-offline">IDLE</div>
+                </div>
             </div>
-            <div class="status-message" id="statusMessage">Initializing...</div>
+
+            <!-- Position & Progress -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">📍</span>
+                    Current Position
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Distance Traveled</div>
+                    <div>
+                        <span class="metric-value" id="distanceValue">0.00</span>
+                        <span class="metric-unit">meters</span>
+                    </div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Steps Completed</div>
+                    <div>
+                        <span class="metric-value" id="stepsValue">0</span>
+                    </div>
+                </div>
+                <div class="metric-label">Progress</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- PID Status -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">🎯</span>
+                    PID Line Following
+                </div>
+                <div class="pid-display">
+                    <div class="pid-item">
+                        <div class="pid-label">Line Position</div>
+                        <div class="pid-value" id="pidPosition">0</div>
+                    </div>
+                    <div class="pid-item">
+                        <div class="pid-label">Correction</div>
+                        <div class="pid-value" id="pidCorrection">0</div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <div class="metric-label">Line Status</div>
+                    <div id="lineStatus" class="status-indicator" style="background: #f3f4f6; color: #6b7280;">
+                        Waiting...
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="override-indicator" id="overrideIndicator">
-            ⚡ DIRECTION OVERRIDE ACTIVE - Commands work while moving!
+        <div class="grid">
+            <!-- Manual Controls -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">🎮</span>
+                    Manual Control
+                </div>
+                <div class="control-grid">
+                    <button class="control-btn btn-forward" onclick="sendCommand('F')" disabled>
+                        <span class="btn-icon">▲</span>
+                        <span>FORWARD</span>
+                    </button>
+                    <button class="control-btn btn-left" onclick="sendCommand('L')" disabled>
+                        <span class="btn-icon">◄</span>
+                        <span>LEFT</span>
+                    </button>
+                    <button class="control-btn btn-right" onclick="sendCommand('R')" disabled>
+                        <span class="btn-icon">►</span>
+                        <span>RIGHT</span>
+                    </button>
+                    <button class="control-btn btn-backward" onclick="sendCommand('B')" disabled>
+                        <span class="btn-icon">▼</span>
+                        <span>BACK</span>
+                    </button>
+                    <button class="control-btn btn-stop" onclick="sendCommand('STOP')" disabled>
+                        <span class="btn-icon">🛑</span>
+                        <span>EMERGENCY STOP</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Room Navigation -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">🗺️</span>
+                    Room Navigation
+                </div>
+                <button class="room-btn" onclick="sendCommand('ROOM1')" disabled>
+                    <div>
+                        <div class="room-name">🏠 Room 1</div>
+                        <div class="room-coords">5m forward, 4m left</div>
+                    </div>
+                    <span>→</span>
+                </button>
+                <button class="room-btn" onclick="sendCommand('ROOM2')" disabled>
+                    <div>
+                        <div class="room-name">🏠 Room 2</div>
+                        <div class="room-coords">7m forward, 4m left</div>
+                    </div>
+                    <span>→</span>
+                </button>
+                <button class="room-btn" onclick="sendCommand('RETURN1')" disabled>
+                    <div>
+                        <div class="room-name">↩️ Return from Room 1</div>
+                        <div class="room-coords">Automatic reverse path</div>
+                    </div>
+                    <span>←</span>
+                </button>
+                <button class="room-btn" onclick="sendCommand('RETURN2')" disabled>
+                    <div>
+                        <div class="room-name">↩️ Return from Room 2</div>
+                        <div class="room-coords">Automatic reverse path</div>
+                    </div>
+                    <span>←</span>
+                </button>
+            </div>
+
+            <!-- Visual Map -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">🗺️</span>
+                    Visual Map
+                </div>
+                <div class="visual-map">
+                    <div class="map-grid"></div>
+                    <div class="wheelchair-icon" id="wheelchairIcon">🦽</div>
+                    <div class="room-marker" style="bottom: 170px; left: 140px;">1</div>
+                    <div class="room-marker" style="bottom: 230px; left: 140px;">2</div>
+                </div>
+            </div>
         </div>
 
-        <div class="control-grid">
-            <button id="forwardBtn" class="control-btn" onclick="sendCommand('F')" disabled>
-                <div class="icon">▲</div>
-                <div class="label">FORWARD</div>
-                <div class="info">Instant override</div>
-            </button>
-
-            <button id="leftBtn" class="control-btn" onclick="sendCommand('L')" disabled>
-                <div class="icon">◄</div>
-                <div class="label">LEFT</div>
-                <div class="info">Differential turn</div>
-            </button>
-
-            <button id="rightBtn" class="control-btn" onclick="sendCommand('R')" disabled>
-                <div class="icon">►</div>
-                <div class="label">RIGHT</div>
-                <div class="info">Differential turn</div>
-            </button>
-
-            <button id="backBtn" class="control-btn" onclick="sendCommand('B')" disabled>
-                <div class="icon">▼</div>
-                <div class="label">BACKWARD</div>
-                <div class="info">Instant override</div>
-            </button>
-
-            <button id="stopBtn" class="control-btn" onclick="sendCommand('STOP')" disabled>
-                <div class="icon">🛑</div>
-                <div class="label">EMERGENCY STOP</div>
-                <div class="info">Press SPACE key</div>
-            </button>
-        </div>
-
-        <div class="info-box">
-            <strong>⚡ NEW FEATURES:</strong>
-            • <strong>Direction Override:</strong> Send new direction anytime - no waiting!<br>
-            • <strong>Emergency Stop:</strong> STOP command or SPACE key halts all motion<br>
-            • <strong>Non-Blocking Sensors:</strong> Obstacle detection works at full speed<br>
-            • <strong>Auto-Resume:</strong> Clears after 2 seconds when path is safe
-        </div>
-
-        <div class="info-box">
-            <strong>📡 System Specs:</strong>
-            • Distance: 100,000 steps per command (resets on override)<br>
-            • Speed: 75μs step delay (13,333 steps/sec)<br>
-            • Steering: Differential (opposing motor directions)<br>
-            • Obstacle Range: 75cm automatic emergency stop
-        </div>
-
-        <div class="safety-warning">
-            <div class="icon">🛡️</div>
-            <strong>SAFETY SYSTEMS ACTIVE</strong><br>
-            Auto-stops at obstacles | Manual emergency stop ready<br>
-            Direction changes are instant and safe
+        <!-- Activity Log -->
+        <div class="card">
+            <div class="card-title">
+                <span class="icon">📋</span>
+                Activity Log
+            </div>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry">System initializing...</div>
+            </div>
         </div>
     </div>
 
     <script>
-        // ============================================================
-        //  MQTT CONFIGURATION
-        // ============================================================
+        // MQTT Configuration
         const MQTT_CONFIG = {
             host: 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt',
             username: 'wheel',
             password: 'Wheel123',
-            clientId: 'WebController_' + Math.random().toString(16).substr(2, 8)
+            clientId: 'Dashboard_' + Math.random().toString(16).substr(2, 8)
         };
 
         const TOPICS = {
             control: 'sachin/esp32/nav/control',
-            status: 'sachin/esp32/nav/status'
+            status: 'sachin/esp32/nav/status',
+            position: 'sachin/esp32/nav/position',
+            pid: 'sachin/esp32/nav/pid'
         };
 
         let client;
-        let isMoving = false;
-        let lastCommand = '';
-        let overrideEnabled = false;
+        let currentSteps = 0;
+        let currentDistance = 0;
 
-        // ============================================================
-        //  MQTT CONNECTION
-        // ============================================================
+        // Connect to MQTT
         function connectMQTT() {
-            console.log('🔌 Connecting to HiveMQ Cloud...');
+            addLog('Connecting to MQTT broker...', 'info');
             
             client = mqtt.connect(MQTT_CONFIG.host, {
                 username: MQTT_CONFIG.username,
@@ -445,154 +588,179 @@
             });
 
             client.on('connect', () => {
-                console.log('✅ Connected to MQTT broker');
+                addLog('Connected to MQTT broker', 'success');
                 updateConnectionStatus(true);
-                updateStatus('Connected - Direction override ready!');
                 
-                // Subscribe to status updates
-                client.subscribe(TOPICS.status, (err) => {
+                // Subscribe to all topics
+                client.subscribe([TOPICS.status, TOPICS.position, TOPICS.pid], (err) => {
                     if (!err) {
-                        console.log('📡 Subscribed to status updates');
-                        showOverrideIndicator();
+                        addLog('Subscribed to all topics', 'success');
                     }
                 });
             });
 
             client.on('message', (topic, message) => {
                 const msg = message.toString();
-                console.log('📨 Status:', msg);
-                updateStatus(msg);
                 
-                // Track movement state
-                if (msg.includes('Moving') || msg.includes('override')) {
-                    isMoving = true;
-                    overrideEnabled = true;
-                    // Keep buttons enabled for override!
-                    enableButtons(true);
-                } else if (msg.includes('Complete') || msg.includes('ready') || msg.includes('Ready')) {
-                    isMoving = false;
-                    overrideEnabled = false;
-                    enableButtons(true);
-                } else if (msg.includes('EMERGENCY') || msg.includes('STOP')) {
-                    isMoving = false;
-                    overrideEnabled = false;
-                    enableButtons(true); // Can send new commands after emergency
+                if (topic === TOPICS.status) {
+                    handleStatusMessage(msg);
+                } else if (topic === TOPICS.position) {
+                    handlePositionMessage(msg);
+                } else if (topic === TOPICS.pid) {
+                    handlePidMessage(msg);
                 }
             });
 
             client.on('error', (error) => {
-                console.error('❌ MQTT Error:', error);
+                addLog('MQTT Error: ' + error, 'error');
                 updateConnectionStatus(false);
-                updateStatus('Connection Error');
             });
 
             client.on('offline', () => {
-                console.log('📴 MQTT Offline');
+                addLog('MQTT Offline', 'error');
                 updateConnectionStatus(false);
-                updateStatus('Disconnected');
-                enableButtons(false);
-            });
-
-            client.on('reconnect', () => {
-                console.log('🔄 Reconnecting...');
-                updateStatus('Reconnecting...');
             });
         }
 
-        // ============================================================
-        //  SEND COMMAND (WITH OVERRIDE SUPPORT)
-        // ============================================================
-        function sendCommand(direction) {
+        // Handle different message types
+        function handleStatusMessage(msg) {
+            addLog(msg, msg.includes('EMERGENCY') ? 'error' : 'info');
+            
+            if (msg.includes('Moving') || msg.includes('Segment')) {
+                updateSystemState('MOVING');
+            } else if (msg.includes('EMERGENCY')) {
+                updateSystemState('EMERGENCY');
+            } else if (msg.includes('Ready') || msg.includes('complete')) {
+                updateSystemState('IDLE');
+            }
+            
+            // Extract step count from progress messages
+            if (msg.includes('Progress:')) {
+                const match = msg.match(/(\d+) steps/);
+                if (match) {
+                    currentSteps = parseInt(match[1]);
+                    currentDistance = currentSteps / 100000;
+                    updateProgressDisplay();
+                }
+            }
+        }
+
+        function handlePositionMessage(msg) {
+            addLog('Position: ' + msg, 'info');
+            // Could parse JSON for more detailed position updates
+        }
+
+        function handlePidMessage(msg) {
+            // Parse PID status: "PID: Pos=-1234 Corr=15"
+            const posMatch = msg.match(/Pos=(-?\d+)/);
+            const corrMatch = msg.match(/Corr=(-?\d+)/);
+            
+            if (posMatch) {
+                document.getElementById('pidPosition').textContent = posMatch[1];
+                updateLineStatus(parseInt(posMatch[1]));
+            }
+            if (corrMatch) {
+                document.getElementById('pidCorrection').textContent = corrMatch[1];
+            }
+        }
+
+        // Update UI elements
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.innerHTML = '<span class="connection-dot dot-green"></span><span>Connected</span>';
+                statusEl.className = 'status-indicator status-online';
+                enableAllButtons(true);
+            } else {
+                statusEl.innerHTML = '<span class="connection-dot dot-red"></span><span>Disconnected</span>';
+                statusEl.className = 'status-indicator status-offline';
+                enableAllButtons(false);
+            }
+        }
+
+        function updateSystemState(state) {
+            const stateEl = document.getElementById('systemState');
+            stateEl.textContent = state;
+            
+            if (state === 'MOVING') {
+                stateEl.className = 'status-indicator status-moving';
+            } else if (state === 'EMERGENCY') {
+                stateEl.className = 'status-indicator status-emergency';
+            } else {
+                stateEl.className = 'status-indicator status-online';
+            }
+        }
+
+        function updateProgressDisplay() {
+            document.getElementById('stepsValue').textContent = currentSteps.toLocaleString();
+            document.getElementById('distanceValue').textContent = currentDistance.toFixed(2);
+            
+            // Update progress bar (assuming 100,000 steps = 100%)
+            const progress = Math.min((currentSteps % 100000) / 1000, 100);
+            document.getElementById('progressBar').style.width = progress + '%';
+            
+            // Update wheelchair position on map (simple approximation)
+            const icon = document.getElementById('wheelchairIcon');
+            const moveX = Math.min(currentDistance * 20, 250);
+            icon.style.left = (20 + moveX) + 'px';
+        }
+
+        function updateLineStatus(position) {
+            const statusEl = document.getElementById('lineStatus');
+            if (Math.abs(position) < 500) {
+                statusEl.textContent = 'Centered ✓';
+                statusEl.style.background = '#d1fae5';
+                statusEl.style.color = '#065f46';
+            } else if (Math.abs(position) < 1500) {
+                statusEl.textContent = 'Minor drift';
+                statusEl.style.background = '#fef3c7';
+                statusEl.style.color = '#92400e';
+            } else {
+                statusEl.textContent = 'Correcting...';
+                statusEl.style.background = '#fee2e2';
+                statusEl.style.color = '#991b1b';
+            }
+        }
+
+        function addLog(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + (type === 'error' ? 'error' : type === 'success' ? 'success' : '');
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            
+            // Keep only last 50 entries
+            while (container.children.length > 50) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        function enableAllButtons(enabled) {
+            document.querySelectorAll('button').forEach(btn => {
+                btn.disabled = !enabled;
+            });
+        }
+
+        function sendCommand(cmd) {
             if (!client || !client.connected) {
-                console.warn('⚠️ Not connected to MQTT');
+                addLog('Cannot send command - not connected', 'error');
                 return;
             }
-
-            const directionNames = {
-                'F': 'Forward',
-                'B': 'Backward',
-                'L': 'Left Turn',
-                'R': 'Right Turn',
-                'STOP': 'EMERGENCY STOP'
-            };
-
-            // Show override message if already moving
-            let statusPrefix = '';
-            if (isMoving && direction !== 'STOP') {
-                statusPrefix = '⚡ OVERRIDE: ';
-                console.log('⚡ DIRECTION OVERRIDE TRIGGERED');
-            }
-
-            console.log(`🎮 Sending: ${direction} (${directionNames[direction]})`);
             
-            client.publish(TOPICS.control, direction, { qos: 1 }, (err) => {
+            client.publish(TOPICS.control, cmd, { qos: 1 }, (err) => {
                 if (err) {
-                    console.error('Failed to send command:', err);
-                    updateStatus('Command failed!');
+                    addLog('Failed to send: ' + cmd, 'error');
                 } else {
-                    updateStatus(statusPrefix + directionNames[direction]);
-                    lastCommand = direction;
-                    
-                    if (direction !== 'STOP') {
-                        isMoving = true;
-                    }
-                    
-                    addRippleEffect(event.currentTarget);
+                    addLog('Command sent: ' + cmd, 'success');
                 }
             });
         }
 
-        // ============================================================
-        //  UI UPDATE FUNCTIONS
-        // ============================================================
-        function updateConnectionStatus(connected) {
-            const indicator = document.getElementById('indicator');
-            const text = document.getElementById('connectionText');
-            
-            if (connected) {
-                indicator.className = 'connection-indicator connected';
-                text.textContent = 'Connected to HiveMQ';
-                enableButtons(true);
-            } else {
-                indicator.className = 'connection-indicator disconnected';
-                text.textContent = 'Disconnected';
-                enableButtons(false);
-            }
-        }
-
-        function updateStatus(message) {
-            document.getElementById('statusMessage').textContent = message;
-        }
-
-        function enableButtons(enabled) {
-            const buttons = ['forwardBtn', 'backBtn', 'leftBtn', 'rightBtn', 'stopBtn'];
-            buttons.forEach(id => {
-                document.getElementById(id).disabled = !enabled;
-            });
-        }
-
-        function showOverrideIndicator() {
-            document.getElementById('overrideIndicator').classList.add('active');
-        }
-
-        function addRippleEffect(button) {
-            const ripple = document.createElement('span');
-            ripple.classList.add('ripple');
-            
-            const rect = button.getBoundingClientRect();
-            const size = Math.max(rect.width, rect.height);
-            ripple.style.width = ripple.style.height = size + 'px';
-            ripple.style.left = event.clientX - rect.left - size / 2 + 'px';
-            ripple.style.top = event.clientY - rect.top - size / 2 + 'px';
-            
-            button.appendChild(ripple);
-            
-            setTimeout(() => ripple.remove(), 600);
-        }
-
-        // ============================================================
-        //  KEYBOARD CONTROLS (WITH EMERGENCY STOP)
-        // ============================================================
+        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (!client || !client.connected) return;
             
@@ -601,8 +769,8 @@
                 'ArrowDown': 'B',
                 'ArrowLeft': 'L',
                 'ArrowRight': 'R',
-                ' ': 'STOP',          // SPACE key
-                'Escape': 'STOP'      // ESC key
+                ' ': 'STOP',
+                'Escape': 'STOP'
             };
             
             if (keyMap[e.key]) {
@@ -611,11 +779,9 @@
             }
         });
 
-        // ============================================================
-        //  INITIALIZATION
-        // ============================================================
+        // Initialize
         window.addEventListener('load', () => {
-            console.log('🚀 IoT Wheelchair Controller v2.0 - Direction Override Enabled');
+            addLog('Dashboard initialized', 'success');
             connectMQTT();
         });
     </script>
