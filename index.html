@@ -3,324 +3,626 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wheelchair Navigation Dashboard</title>
+    <title>Wheelchair Navigation Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
-            color: #333;
+            color: white;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            pointer-events: none;
+            z-index: 0;
         }
 
         .dashboard {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
         }
 
         .header {
             text-align: center;
-            color: white;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
+            animation: fadeInDown 0.8s ease;
         }
 
         .header h1 {
-            font-size: 36px;
+            font-size: 48px;
+            font-weight: 800;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(to right, #fff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(255,255,255,0.3);
         }
 
         .header .subtitle {
-            font-size: 16px;
+            font-size: 18px;
             opacity: 0.9;
+            font-weight: 300;
         }
 
         .grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeInUp 0.6s ease backwards;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             margin-bottom: 20px;
         }
 
-        @media (max-width: 1200px) {
-            .grid {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 25px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .card-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
-            color: #1e40af;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            letter-spacing: -0.5px;
         }
 
-        .card-title .icon {
-            font-size: 24px;
-        }
-
-        .status-indicator {
+        .status-badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 16px;
-            border-radius: 20px;
+            padding: 10px 20px;
+            border-radius: 50px;
             font-size: 14px;
             font-weight: 600;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
         }
 
         .status-online {
-            background: #d1fae5;
-            color: #065f46;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.3));
+            animation: pulse-glow 2s infinite;
         }
 
         .status-offline {
-            background: #fee2e2;
-            color: #991b1b;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.3));
         }
 
         .status-moving {
-            background: #dbeafe;
-            color: #1e40af;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(29, 78, 216, 0.3));
+            animation: slide-pulse 1.5s infinite;
         }
 
         .status-emergency {
-            background: #fee2e2;
-            color: #991b1b;
-            animation: pulse-emergency 1s infinite;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.5), rgba(153, 27, 27, 0.5));
+            animation: emergency-flash 0.5s infinite;
         }
 
-        @keyframes pulse-emergency {
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.8); }
+        }
+
+        @keyframes slide-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes emergency-flash {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.6; }
         }
 
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .connection-dot {
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             display: inline-block;
+            position: relative;
         }
 
         .dot-green {
             background: #10b981;
-            animation: pulse-dot 2s infinite;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.8);
+        }
+
+        .dot-green::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 50%;
+            border: 2px solid rgba(16, 185, 129, 0.5);
+            animation: ripple 2s infinite;
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.8);
+                opacity: 0;
+            }
         }
 
         .dot-red {
             background: #ef4444;
-        }
-
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
         }
 
         .metric {
-            margin: 15px 0;
+            margin: 20px 0;
         }
 
         .metric-label {
             font-size: 13px;
-            color: #6b7280;
-            margin-bottom: 5px;
+            opacity: 0.8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
         }
 
         .metric-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1e40af;
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1;
+            background: linear-gradient(to right, #fff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .metric-unit {
-            font-size: 16px;
-            color: #6b7280;
+            font-size: 18px;
+            opacity: 0.7;
             font-weight: 400;
+            margin-left: 5px;
+        }
+
+        .progress-container {
+            margin-top: 15px;
         }
 
         .progress-bar {
             width: 100%;
-            height: 12px;
-            background: #e5e7eb;
-            border-radius: 6px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
             overflow: hidden;
-            margin-top: 8px;
+            position: relative;
         }
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #1e40af);
-            transition: width 0.5s ease;
-            border-radius: 6px;
+            background: linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6);
+            background-size: 200% 100%;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 10px;
+            animation: gradient-flow 2s linear infinite;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+
+        @keyframes gradient-flow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
         }
 
         .control-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            gap: 15px;
+            margin-top: 20px;
         }
 
         .control-btn {
-            padding: 20px;
+            padding: 0;
+            min-height: 80px;
             border: none;
-            border-radius: 12px;
+            border-radius: 16px;
             color: white;
             font-size: 16px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 8px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .control-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, transparent, rgba(255,255,255,0.1));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .control-btn:hover:not(:disabled)::before {
+            opacity: 1;
         }
 
         .control-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .control-btn:active:not(:disabled) {
+            transform: translateY(-1px) scale(0.98);
         }
 
         .control-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
         }
 
         .control-btn .btn-icon {
-            font-size: 28px;
+            font-size: 32px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
         }
 
-        .btn-forward {
-            background: linear-gradient(135deg, #10b981, #059669);
-            grid-column: 2;
-        }
-
-        .btn-left {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-        }
-
-        .btn-right {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-        }
-
-        .btn-backward {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            grid-column: 2;
-        }
+        .btn-forward { grid-column: 2; }
+        .btn-backward { grid-column: 2; }
 
         .btn-stop {
-            background: linear-gradient(135deg, #991b1b, #7f1d1d);
             grid-column: 1 / -1;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(153, 27, 27, 0.3));
+            border-color: rgba(239, 68, 68, 0.5);
             animation: stop-pulse 2s infinite;
         }
 
         @keyframes stop-pulse {
-            0%, 100% { box-shadow: 0 4px 15px rgba(153, 27, 27, 0.4); }
-            50% { box-shadow: 0 6px 25px rgba(153, 27, 27, 0.7); }
+            0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.7); }
         }
 
         .room-btn {
-            padding: 15px;
-            border: 2px solid #3b82f6;
-            background: white;
-            border-radius: 12px;
+            padding: 20px;
+            margin: 12px 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 16px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 8px 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .room-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .room-btn:hover:not(:disabled)::before {
+            left: 100%;
         }
 
         .room-btn:hover:not(:disabled) {
-            background: #eff6ff;
             transform: translateX(5px);
+            border-color: rgba(255,255,255,0.4);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
         }
 
         .room-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
+        }
+
+        .room-info {
+            flex: 1;
         }
 
         .room-name {
             font-weight: 700;
-            color: #1e40af;
+            font-size: 16px;
+            margin-bottom: 5px;
         }
 
         .room-coords {
             font-size: 13px;
-            color: #6b7280;
+            opacity: 0.7;
         }
 
-        .pid-display {
+        .room-arrow {
+            font-size: 24px;
+            opacity: 0.7;
+            transition: transform 0.3s ease;
+        }
+
+        .room-btn:hover:not(:disabled) .room-arrow {
+            transform: translateX(5px);
+        }
+
+        .pid-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
         }
 
         .pid-item {
-            background: #f3f4f6;
-            padding: 12px;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
             text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .pid-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
         }
 
         .pid-label {
             font-size: 12px;
-            color: #6b7280;
+            opacity: 0.7;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .pid-value {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(to right, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .visual-map {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            padding: 30px;
+            position: relative;
+            height: 400px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .map-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: grid-flow 20s linear infinite;
+        }
+
+        @keyframes grid-flow {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(40px, 40px); }
+        }
+
+        .wheelchair-icon {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
+            bottom: 30px;
+            left: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            z-index: 10;
+        }
+
+        .wheelchair-icon::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid rgba(59, 130, 246, 0.5);
+            animation: sonar 2s infinite;
+        }
+
+        @keyframes sonar {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        .room-marker {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
             font-size: 20px;
-            font-weight: 700;
-            color: #1e40af;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            animation: marker-bounce 2s infinite;
+        }
+
+        @keyframes marker-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
 
         .log-container {
-            background: #1f2937;
-            border-radius: 12px;
-            padding: 15px;
-            max-height: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            max-height: 250px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .log-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .log-entry {
-            color: #d1d5db;
-            margin: 5px 0;
-            padding: 5px;
-            border-left: 3px solid #3b82f6;
-            padding-left: 10px;
+            color: rgba(255, 255, 255, 0.8);
+            margin: 8px 0;
+            padding: 10px;
+            border-left: 3px solid rgba(59, 130, 246, 0.5);
+            padding-left: 15px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 0 8px 8px 0;
+            transition: all 0.3s ease;
+            animation: log-slide 0.3s ease;
+        }
+
+        @keyframes log-slide {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(5px);
         }
 
         .log-entry.error {
@@ -333,118 +635,100 @@
             color: #6ee7b7;
         }
 
-        .visual-map {
-            background: #f9fafb;
-            border-radius: 12px;
-            padding: 20px;
-            position: relative;
-            height: 300px;
-            overflow: hidden;
+        .log-entry.warning {
+            border-left-color: #f59e0b;
+            color: #fcd34d;
         }
 
-        .map-grid {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(#e5e7eb 1px, transparent 1px),
-                linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
-            background-size: 30px 30px;
+        @media (max-width: 1200px) {
+            .grid {
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            }
         }
 
-        .wheelchair-icon {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: #3b82f6;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-            transition: all 0.5s ease;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5);
-            bottom: 20px;
-            left: 20px;
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 32px;
+            }
+            
+            .glass-card {
+                padding: 20px;
+            }
+            
+            .control-btn {
+                min-height: 70px;
+            }
         }
 
-        .room-marker {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background: #10b981;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 700;
-            font-size: 14px;
-            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.5);
+        .keyboard-hint {
+            text-align: center;
+            margin-top: 20px;
+            opacity: 0.6;
+            font-size: 13px;
+            animation: fadeInUp 1s ease 0.5s backwards;
         }
     </style>
 </head>
 <body>
     <div class="dashboard">
         <div class="header">
-            <h1>🦽 Wheelchair Navigation Dashboard</h1>
-            <p class="subtitle">Real-time Map Navigation with PID Line Following</p>
+            <h1>🦽 Wheelchair Navigation Pro</h1>
+            <p class="subtitle">Precision Angle-Based Control with Real-Time PID</p>
         </div>
 
         <div class="grid">
             <!-- Connection Status -->
-            <div class="card">
-                <div class="card-title">
-                    <span class="icon">📡</span>
-                    Connection Status
+            <div class="glass-card" style="animation-delay: 0.1s">
+                <div class="card-header">
+                    <div class="card-icon">📡</div>
+                    <div class="card-title">Connection</div>
                 </div>
-                <div class="status-indicator" id="connectionStatus">
+                <div class="status-badge status-offline" id="connectionStatus">
                     <span class="connection-dot dot-red"></span>
                     <span>Connecting...</span>
                 </div>
-                <div style="margin-top: 15px;">
+                <div class="metric">
                     <div class="metric-label">System State</div>
-                    <div id="systemState" class="status-indicator status-offline">IDLE</div>
+                    <div id="systemState" class="status-badge status-offline">IDLE</div>
                 </div>
             </div>
 
-            <!-- Position & Progress -->
-            <div class="card">
-                <div class="card-title">
-                    <span class="icon">📍</span>
-                    Current Position
+            <!-- Position Tracking -->
+            <div class="glass-card" style="animation-delay: 0.2s">
+                <div class="card-header">
+                    <div class="card-icon">📍</div>
+                    <div class="card-title">Position</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">Distance Traveled</div>
+                    <div class="metric-label">Distance</div>
                     <div>
                         <span class="metric-value" id="distanceValue">0.00</span>
-                        <span class="metric-unit">meters</span>
+                        <span class="metric-unit">m</span>
                     </div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">Steps Completed</div>
+                    <div class="metric-label">Steps</div>
                     <div>
-                        <span class="metric-value" id="stepsValue">0</span>
+                        <span class="metric-value" id="stepsValue" style="font-size: 28px;">0</span>
                     </div>
                 </div>
-                <div class="metric-label">Progress</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                <div class="progress-container">
+                    <div class="metric-label">Progress</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                    </div>
                 </div>
             </div>
 
             <!-- PID Status -->
-            <div class="card">
-                <div class="card-title">
-                    <span class="icon">🎯</span>
-                    PID Line Following
+            <div class="glass-card" style="animation-delay: 0.3s">
+                <div class="card-header">
+                    <div class="card-icon">🎯</div>
+                    <div class="card-title">PID Control</div>
                 </div>
-                <div class="pid-display">
+                <div class="pid-grid">
                     <div class="pid-item">
-                        <div class="pid-label">Line Position</div>
+                        <div class="pid-label">Position</div>
                         <div class="pid-value" id="pidPosition">0</div>
                     </div>
                     <div class="pid-item">
@@ -452,9 +736,9 @@
                         <div class="pid-value" id="pidCorrection">0</div>
                     </div>
                 </div>
-                <div style="margin-top: 15px;">
+                <div class="metric" style="margin-top: 20px;">
                     <div class="metric-label">Line Status</div>
-                    <div id="lineStatus" class="status-indicator" style="background: #f3f4f6; color: #6b7280;">
+                    <div id="lineStatus" class="status-badge" style="background: rgba(255,255,255,0.1);">
                         Waiting...
                     </div>
                 </div>
@@ -463,23 +747,23 @@
 
         <div class="grid">
             <!-- Manual Controls -->
-            <div class="card">
-                <div class="card-title">
-                    <span class="icon">🎮</span>
-                    Manual Control
+            <div class="glass-card" style="animation-delay: 0.4s">
+                <div class="card-header">
+                    <div class="card-icon">🎮</div>
+                    <div class="card-title">Manual Control</div>
                 </div>
                 <div class="control-grid">
                     <button class="control-btn btn-forward" onclick="sendCommand('F')" disabled>
                         <span class="btn-icon">▲</span>
                         <span>FORWARD</span>
                     </button>
-                    <button class="control-btn btn-left" onclick="sendCommand('L')" disabled>
+                    <button class="control-btn" onclick="sendCommand('L')" disabled>
                         <span class="btn-icon">◄</span>
-                        <span>LEFT</span>
+                        <span>LEFT 90°</span>
                     </button>
-                    <button class="control-btn btn-right" onclick="sendCommand('R')" disabled>
+                    <button class="control-btn" onclick="sendCommand('R')" disabled>
                         <span class="btn-icon">►</span>
-                        <span>RIGHT</span>
+                        <span>RIGHT 90°</span>
                     </button>
                     <button class="control-btn btn-backward" onclick="sendCommand('B')" disabled>
                         <span class="btn-icon">▼</span>
@@ -487,303 +771,63 @@
                     </button>
                     <button class="control-btn btn-stop" onclick="sendCommand('STOP')" disabled>
                         <span class="btn-icon">🛑</span>
-                        <span>EMERGENCY STOP</span>
+                        <span>STOP</span>
                     </button>
+                </div>
+                <div class="keyboard-hint">
+                    ⌨️ Arrow keys & Space to control
                 </div>
             </div>
 
             <!-- Room Navigation -->
-            <div class="card">
-                <div class="card-title">
-                    <span class="icon">🗺️</span>
-                    Room Navigation
+            <div class="glass-card" style="animation-delay: 0.5s">
+                <div class="card-header">
+                    <div class="card-icon">🗺️</div>
+                    <div class="card-title">Room Navigation</div>
                 </div>
                 <button class="room-btn" onclick="sendCommand('ROOM1')" disabled>
-                    <div>
+                    <div class="room-info">
                         <div class="room-name">🏠 Room 1</div>
-                        <div class="room-coords">5m forward, 4m left</div>
+                        <div class="room-coords">2m forward → Right 90° → 1m forward</div>
                     </div>
-                    <span>→</span>
+                    <span class="room-arrow">→</span>
                 </button>
                 <button class="room-btn" onclick="sendCommand('ROOM2')" disabled>
-                    <div>
+                    <div class="room-info">
                         <div class="room-name">🏠 Room 2</div>
-                        <div class="room-coords">7m forward, 4m left</div>
+                        <div class="room-coords">3m forward → Left 90° → 1m forward</div>
                     </div>
-                    <span>→</span>
+                    <span class="room-arrow">→</span>
                 </button>
                 <button class="room-btn" onclick="sendCommand('RETURN1')" disabled>
-                    <div>
+                    <div class="room-info">
                         <div class="room-name">↩️ Return from Room 1</div>
                         <div class="room-coords">Automatic reverse path</div>
                     </div>
-                    <span>←</span>
+                    <span class="room-arrow">←</span>
                 </button>
                 <button class="room-btn" onclick="sendCommand('RETURN2')" disabled>
-                    <div>
+                    <div class="room-info">
                         <div class="room-name">↩️ Return from Room 2</div>
                         <div class="room-coords">Automatic reverse path</div>
                     </div>
-                    <span>←</span>
+                    <span class="room-arrow">←</span>
+                </button>
+                <button class="room-btn" onclick="sendCommand('U')" disabled>
+                    <div class="room-info">
+                        <div class="room-name">🔄 U-Turn</div>
+                        <div class="room-coords">180° rotation (2 × 90°)</div>
+                    </div>
+                    <span class="room-arrow">⟲</span>
                 </button>
             </div>
 
             <!-- Visual Map -->
-            <div class="card">
-                <div class="card-title">
-                    <span class="icon">🗺️</span>
-                    Visual Map
+            <div class="glass-card" style="animation-delay: 0.6s">
+                <div class="card-header">
+                    <div class="card-icon">🗺️</div>
+                    <div class="card-title">Live Map</div>
                 </div>
                 <div class="visual-map">
                     <div class="map-grid"></div>
-                    <div class="wheelchair-icon" id="wheelchairIcon">🦽</div>
-                    <div class="room-marker" style="bottom: 170px; left: 140px;">1</div>
-                    <div class="room-marker" style="bottom: 230px; left: 140px;">2</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Activity Log -->
-        <div class="card">
-            <div class="card-title">
-                <span class="icon">📋</span>
-                Activity Log
-            </div>
-            <div class="log-container" id="logContainer">
-                <div class="log-entry">System initializing...</div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // MQTT Configuration
-        const MQTT_CONFIG = {
-            host: 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt',
-            username: 'wheel',
-            password: 'Wheel123',
-            clientId: 'Dashboard_' + Math.random().toString(16).substr(2, 8)
-        };
-
-        const TOPICS = {
-            control: 'sachin/esp32/nav/control',
-            status: 'sachin/esp32/nav/status',
-            position: 'sachin/esp32/nav/position',
-            pid: 'sachin/esp32/nav/pid'
-        };
-
-        let client;
-        let currentSteps = 0;
-        let currentDistance = 0;
-
-        // Connect to MQTT
-        function connectMQTT() {
-            addLog('Connecting to MQTT broker...', 'info');
-            
-            client = mqtt.connect(MQTT_CONFIG.host, {
-                username: MQTT_CONFIG.username,
-                password: MQTT_CONFIG.password,
-                clientId: MQTT_CONFIG.clientId,
-                clean: true,
-                reconnectPeriod: 5000
-            });
-
-            client.on('connect', () => {
-                addLog('Connected to MQTT broker', 'success');
-                updateConnectionStatus(true);
-                
-                // Subscribe to all topics
-                client.subscribe([TOPICS.status, TOPICS.position, TOPICS.pid], (err) => {
-                    if (!err) {
-                        addLog('Subscribed to all topics', 'success');
-                    }
-                });
-            });
-
-            client.on('message', (topic, message) => {
-                const msg = message.toString();
-                
-                if (topic === TOPICS.status) {
-                    handleStatusMessage(msg);
-                } else if (topic === TOPICS.position) {
-                    handlePositionMessage(msg);
-                } else if (topic === TOPICS.pid) {
-                    handlePidMessage(msg);
-                }
-            });
-
-            client.on('error', (error) => {
-                addLog('MQTT Error: ' + error, 'error');
-                updateConnectionStatus(false);
-            });
-
-            client.on('offline', () => {
-                addLog('MQTT Offline', 'error');
-                updateConnectionStatus(false);
-            });
-        }
-
-        // Handle different message types
-        function handleStatusMessage(msg) {
-            addLog(msg, msg.includes('EMERGENCY') ? 'error' : 'info');
-            
-            if (msg.includes('Moving') || msg.includes('Segment')) {
-                updateSystemState('MOVING');
-            } else if (msg.includes('EMERGENCY')) {
-                updateSystemState('EMERGENCY');
-            } else if (msg.includes('Ready') || msg.includes('complete')) {
-                updateSystemState('IDLE');
-            }
-            
-            // Extract step count from progress messages
-            if (msg.includes('Progress:')) {
-                const match = msg.match(/(\d+) steps/);
-                if (match) {
-                    currentSteps = parseInt(match[1]);
-                    currentDistance = currentSteps / 100000;
-                    updateProgressDisplay();
-                }
-            }
-        }
-
-        function handlePositionMessage(msg) {
-            addLog('Position: ' + msg, 'info');
-            // Could parse JSON for more detailed position updates
-        }
-
-        function handlePidMessage(msg) {
-            // Parse PID status: "PID: Pos=-1234 Corr=15"
-            const posMatch = msg.match(/Pos=(-?\d+)/);
-            const corrMatch = msg.match(/Corr=(-?\d+)/);
-            
-            if (posMatch) {
-                document.getElementById('pidPosition').textContent = posMatch[1];
-                updateLineStatus(parseInt(posMatch[1]));
-            }
-            if (corrMatch) {
-                document.getElementById('pidCorrection').textContent = corrMatch[1];
-            }
-        }
-
-        // Update UI elements
-        function updateConnectionStatus(connected) {
-            const statusEl = document.getElementById('connectionStatus');
-            if (connected) {
-                statusEl.innerHTML = '<span class="connection-dot dot-green"></span><span>Connected</span>';
-                statusEl.className = 'status-indicator status-online';
-                enableAllButtons(true);
-            } else {
-                statusEl.innerHTML = '<span class="connection-dot dot-red"></span><span>Disconnected</span>';
-                statusEl.className = 'status-indicator status-offline';
-                enableAllButtons(false);
-            }
-        }
-
-        function updateSystemState(state) {
-            const stateEl = document.getElementById('systemState');
-            stateEl.textContent = state;
-            
-            if (state === 'MOVING') {
-                stateEl.className = 'status-indicator status-moving';
-            } else if (state === 'EMERGENCY') {
-                stateEl.className = 'status-indicator status-emergency';
-            } else {
-                stateEl.className = 'status-indicator status-online';
-            }
-        }
-
-        function updateProgressDisplay() {
-            document.getElementById('stepsValue').textContent = currentSteps.toLocaleString();
-            document.getElementById('distanceValue').textContent = currentDistance.toFixed(2);
-            
-            // Update progress bar (assuming 100,000 steps = 100%)
-            const progress = Math.min((currentSteps % 100000) / 1000, 100);
-            document.getElementById('progressBar').style.width = progress + '%';
-            
-            // Update wheelchair position on map (simple approximation)
-            const icon = document.getElementById('wheelchairIcon');
-            const moveX = Math.min(currentDistance * 20, 250);
-            icon.style.left = (20 + moveX) + 'px';
-        }
-
-        function updateLineStatus(position) {
-            const statusEl = document.getElementById('lineStatus');
-            if (Math.abs(position) < 500) {
-                statusEl.textContent = 'Centered ✓';
-                statusEl.style.background = '#d1fae5';
-                statusEl.style.color = '#065f46';
-            } else if (Math.abs(position) < 1500) {
-                statusEl.textContent = 'Minor drift';
-                statusEl.style.background = '#fef3c7';
-                statusEl.style.color = '#92400e';
-            } else {
-                statusEl.textContent = 'Correcting...';
-                statusEl.style.background = '#fee2e2';
-                statusEl.style.color = '#991b1b';
-            }
-        }
-
-        function addLog(message, type = 'info') {
-            const container = document.getElementById('logContainer');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + (type === 'error' ? 'error' : type === 'success' ? 'success' : '');
-            
-            const timestamp = new Date().toLocaleTimeString();
-            entry.textContent = `[${timestamp}] ${message}`;
-            
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
-            
-            // Keep only last 50 entries
-            while (container.children.length > 50) {
-                container.removeChild(container.firstChild);
-            }
-        }
-
-        function enableAllButtons(enabled) {
-            document.querySelectorAll('button').forEach(btn => {
-                btn.disabled = !enabled;
-            });
-        }
-
-        function sendCommand(cmd) {
-            if (!client || !client.connected) {
-                addLog('Cannot send command - not connected', 'error');
-                return;
-            }
-            
-            client.publish(TOPICS.control, cmd, { qos: 1 }, (err) => {
-                if (err) {
-                    addLog('Failed to send: ' + cmd, 'error');
-                } else {
-                    addLog('Command sent: ' + cmd, 'success');
-                }
-            });
-        }
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (!client || !client.connected) return;
-            
-            const keyMap = {
-                'ArrowUp': 'F',
-                'ArrowDown': 'B',
-                'ArrowLeft': 'L',
-                'ArrowRight': 'R',
-                ' ': 'STOP',
-                'Escape': 'STOP'
-            };
-            
-            if (keyMap[e.key]) {
-                e.preventDefault();
-                sendCommand(keyMap[e.key]);
-            }
-        });
-
-        // Initialize
-        window.addEventListener('load', () => {
-            addLog('Dashboard initialized', 'success');
-            connectMQTT();
-        });
-    </script>
-</body>
-</html>
+                    <div class="wheelchair-icon" id="wheelchairIcon">
