@@ -830,4 +830,265 @@
                 </div>
                 <div class="visual-map">
                     <div class="map-grid"></div>
-                    <div class="wheelchair-icon" id="wheelchairIcon">
+                    <div class="wheelchair-icon" id="wheelchairIcon">🦽</div>
+                    <div class="room-marker" style="bottom: 200px; left: 30px;">1</div>
+                    <div class="room-marker" style="bottom: 280px; left: 30px; background: linear-gradient(135deg, #f59e0b, #d97706);">2</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="glass-card" style="animation-delay: 0.7s">
+            <div class="card-header">
+                <div class="card-icon">📋</div>
+                <div class="card-title">Activity Log</div>
+            </div>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry">System initializing...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MQTT_CONFIG = {
+            host: 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt',
+            username: 'wheel',
+            password: 'Wheel123',
+            clientId: 'Dashboard_' + Math.random().toString(16).substr(2, 8)
+        };
+
+        const TOPICS = {
+            control: 'sachin/esp32/nav/control',
+            status: 'sachin/esp32/nav/status',
+            position: 'sachin/esp32/nav/position',
+            pid: 'sachin/esp32/nav/pid'
+        };
+
+        let client;
+        let currentSteps = 0;
+        let currentDistance = 0;
+        let currentRotation = 0;
+
+        function connectMQTT() {
+            addLog('Connecting to MQTT broker...', 'info');
+            
+            client = mqtt.connect(MQTT_CONFIG.host, {
+                username: MQTT_CONFIG.username,
+                password: MQTT_CONFIG.password,
+                clientId: MQTT_CONFIG.clientId,
+                clean: true,
+                reconnectPeriod: 5000
+            });
+
+            client.on('connect', () => {
+                addLog('✓ Connected to MQTT broker', 'success');
+                updateConnectionStatus(true);
+                
+                client.subscribe([TOPICS.status, TOPICS.position, TOPICS.pid], (err) => {
+                    if (!err) {
+                        addLog('✓ Subscribed to all topics', 'success');
+                    }
+                });
+            });
+
+            client.on('message', (topic, message) => {
+                const msg = message.toString();
+                
+                if (topic === TOPICS.status) {
+                    handleStatusMessage(msg);
+                } else if (topic === TOPICS.position) {
+                    handlePositionMessage(msg);
+                } else if (topic === TOPICS.pid) {
+                    handlePidMessage(msg);
+                }
+            });
+
+            client.on('error', (error) => {
+                addLog('❌ MQTT Error: ' + error, 'error');
+                updateConnectionStatus(false);
+            });
+
+            client.on('offline', () => {
+                addLog('⚠️ MQTT Offline', 'warning');
+                updateConnectionStatus(false);
+            });
+
+            client.on('reconnect', () => {
+                addLog('🔄 Reconnecting...', 'info');
+            });
+        }
+
+        function handleStatusMessage(msg) {
+            let logType = 'info';
+            if (msg.includes('EMERGENCY')) logType = 'error';
+            else if (msg.includes('✓') || msg.includes('complete')) logType = 'success';
+            else if (msg.includes('Rotating')) logType = 'warning';
+            
+            addLog(msg, logType);
+            
+            if (msg.includes('Moving') || msg.includes('Rotating') || msg.includes('Segment')) {
+                updateSystemState('MOVING');
+            } else if (msg.includes('EMERGENCY')) {
+                updateSystemState('EMERGENCY');
+            } else if (msg.includes('Ready') || msg.includes('complete') || msg.includes('cleared')) {
+                updateSystemState('IDLE');
+            }
+            
+            const match = msg.match(/(\d+) steps/);
+            if (match) {
+                currentSteps = parseInt(match[1]);
+                currentDistance = currentSteps / 64000;
+                updateProgressDisplay();
+            }
+            
+            if (msg.includes('LEFT 90°')) {
+                currentRotation = (currentRotation - 90 + 360) % 360;
+                updateWheelchairRotation();
+            } else if (msg.includes('RIGHT 90°')) {
+                currentRotation = (currentRotation + 90) % 360;
+                updateWheelchairRotation();
+            } else if (msg.includes('180°')) {
+                currentRotation = (currentRotation + 180) % 360;
+                updateWheelchairRotation();
+            }
+        }
+
+        function handlePositionMessage(msg) {
+            addLog('📍 ' + msg, 'info');
+        }
+
+        function handlePidMessage(msg) {
+            const posMatch = msg.match(/Pos=(-?\d+)/);
+            const corrMatch = msg.match(/Corr=(-?\d+)/);
+            
+            if (posMatch) {
+                const pos = parseInt(posMatch[1]);
+                document.getElementById('pidPosition').textContent = pos;
+                updateLineStatus(pos);
+            }
+            if (corrMatch) {
+                document.getElementById('pidCorrection').textContent = corrMatch[1];
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.innerHTML = '<span class="connection-dot dot-green"></span><span>Connected</span>';
+                statusEl.className = 'status-badge status-online';
+                enableAllButtons(true);
+            } else {
+                statusEl.innerHTML = '<span class="connection-dot dot-red"></span><span>Disconnected</span>';
+                statusEl.className = 'status-badge status-offline';
+                enableAllButtons(false);
+            }
+        }
+
+        function updateSystemState(state) {
+            const stateEl = document.getElementById('systemState');
+            stateEl.textContent = state;
+            
+            if (state === 'MOVING') {
+                stateEl.className = 'status-badge status-moving';
+            } else if (state === 'EMERGENCY') {
+                stateEl.className = 'status-badge status-emergency';
+            } else {
+                stateEl.className = 'status-badge status-online';
+            }
+        }
+
+        function updateProgressDisplay() {
+            document.getElementById('stepsValue').textContent = currentSteps.toLocaleString();
+            document.getElementById('distanceValue').textContent = currentDistance.toFixed(2);
+            
+            const progress = Math.min((currentSteps % 64000) / 640, 100);
+            document.getElementById('progressBar').style.width = progress + '%';
+            
+            const icon = document.getElementById('wheelchairIcon');
+            const moveX = Math.min(currentDistance * 30, 300);
+            icon.style.left = (30 + moveX) + 'px';
+        }
+
+        function updateWheelchairRotation() {
+            const icon = document.getElementById('wheelchairIcon');
+            icon.style.transform = `rotate(${currentRotation}deg)`;
+        }
+
+        function updateLineStatus(position) {
+            const statusEl = document.getElementById('lineStatus');
+            if (Math.abs(position) < 500) {
+                statusEl.textContent = '✓ Centered';
+                statusEl.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.3))';
+            } else if (Math.abs(position) < 1500) {
+                statusEl.textContent = '⚠️ Minor Drift';
+                statusEl.style.background = 'linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.3))';
+            } else {
+                statusEl.textContent = '⚡ Correcting';
+                statusEl.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(29, 78, 216, 0.3))';
+            }
+        }
+
+        function addLog(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            
+            while (container.children.length > 100) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        function enableAllButtons(enabled) {
+            document.querySelectorAll('button').forEach(btn => {
+                btn.disabled = !enabled;
+            });
+        }
+
+        function sendCommand(cmd) {
+            if (!client || !client.connected) {
+                addLog('❌ Cannot send - not connected', 'error');
+                return;
+            }
+            
+            client.publish(TOPICS.control, cmd, { qos: 1 }, (err) => {
+                if (err) {
+                    addLog('❌ Failed to send: ' + cmd, 'error');
+                } else {
+                    addLog('✓ Command sent: ' + cmd, 'success');
+                }
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!client || !client.connected) return;
+            
+            const keyMap = {
+                'ArrowUp': 'F',
+                'ArrowDown': 'B',
+                'ArrowLeft': 'L',
+                'ArrowRight': 'R',
+                ' ': 'STOP',
+                'Escape': 'STOP',
+                'u': 'U',
+                'U': 'U'
+            };
+            
+            if (keyMap[e.key]) {
+                e.preventDefault();
+                sendCommand(keyMap[e.key]);
+            }
+        });
+
+        window.addEventListener('load', () => {
+            addLog('🚀 Dashboard initialized', 'success');
+            connectMQTT();
+        });
+    </script>
+</body>
+</html>
