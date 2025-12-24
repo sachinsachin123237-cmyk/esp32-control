@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ESP32 Wheelchair Dashboard</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+
 <style>
   body {
     font-family: 'Roboto', sans-serif;
@@ -16,37 +19,47 @@
     min-height: 100vh;
     margin: 0;
   }
+
   .dashboard {
     background: rgba(0,0,0,0.6);
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 0 30px rgba(0,0,0,0.5);
     text-align: center;
-    width: 350px;
+    width: 360px;
   }
+
   h1 {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     font-size: 1.8em;
   }
-  .status {
-    font-size: 1.5em;
-    margin-bottom: 20px;
-    padding: 10px;
-    border-radius: 15px;
-    transition: all 0.3s ease;
+
+  .connection {
+    font-size: 0.9em;
+    margin-bottom: 15px;
+    opacity: 0.9;
   }
-  .status.idle { background: #4caf50; }       /* Green */
-  .status.moving { background: #2196f3; }    /* Blue */
-  .status.emergency { background: #f44336; } /* Red */
-  
+
+  .status {
+    font-size: 1.4em;
+    margin-bottom: 20px;
+    padding: 12px;
+    border-radius: 15px;
+    transition: 0.3s;
+  }
+
+  .status.idle { background: #4caf50; }
+  .status.moving { background: #2196f3; }
+  .status.emergency { background: #f44336; }
+
   .distance {
     font-size: 1.2em;
     margin-bottom: 20px;
   }
-  
+
   .controls button {
     padding: 12px 20px;
-    margin: 5px;
+    margin: 6px;
     border: none;
     border-radius: 12px;
     background: #ff9800;
@@ -55,56 +68,154 @@
     cursor: pointer;
     transition: 0.3s;
   }
-  .controls button:hover {
-    background: #e68900;
+
+  .controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
+  .controls button:hover:not(:disabled) {
+    background: #e68900;
+  }
 </style>
 </head>
+
 <body>
 
 <div class="dashboard">
-  <h1>Wheelchair Dashboard</h1>
+  <h1>🦽 Wheelchair Dashboard</h1>
+
+  <div id="connection" class="connection">Connecting to MQTT...</div>
+
   <div id="status" class="status idle">Idle</div>
-  <div class="distance">Distance: <span id="distance">--</span> cm</div>
-  
+
+  <div class="distance">
+    Distance: <span id="distance">--</span> cm
+  </div>
+
   <div class="controls">
-    <button onclick="sendCommand('F')">Forward</button>
-    <button onclick="sendCommand('B')">Backward</button>
-    <button onclick="sendCommand('L')">Left</button>
-    <button onclick="sendCommand('R')">Right</button>
+    <button id="btnF" onclick="sendCommand('F')">Forward</button>
+    <button id="btnB" onclick="sendCommand('B')">Backward</button><br>
+    <button id="btnL" onclick="sendCommand('L')">Left</button>
+    <button id="btnR" onclick="sendCommand('R')">Right</button>
   </div>
 </div>
 
 <script>
-  // Simulated status & distance updates for demo
-  let statusDiv = document.getElementById('status');
-  let distanceSpan = document.getElementById('distance');
+/* ================= MQTT CONFIG ================= */
 
-  let status = 'idle'; // idle / moving / emergency
-  let distance = 50;
+const MQTT_CONFIG = {
+  host: 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt',
+  username: 'wheel',
+  password: 'Wheel123',
+  clientId: 'Dashboard_' + Math.random().toString(16).substr(2, 8)
+};
 
-  // Fake data updates
-  setInterval(() => {
-    // Simulate distance change
-    distance = Math.floor(Math.random() * 50) + 5; // 5-55cm
-    distanceSpan.textContent = distance;
+const TOPICS = {
+  control: 'sachin/esp32/nav/control',
+  status:  'sachin/esp32/nav/status',
+  distance:'sachin/esp32/nav/distance'
+};
 
-    // Change status based on distance
-    if(distance <= 10) status = 'emergency';
-    else if(distance > 10 && statusDiv.textContent != 'Idle') status = 'moving';
-    else status = 'idle';
+let client;
+let isMoving = false;
 
-    statusDiv.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-    statusDiv.className = 'status ' + status;
-  }, 1000);
+/* ================= UI ELEMENTS ================= */
 
-  // Send command to ESP32 via MQTT / WebSocket
-  function sendCommand(cmd) {
-    alert('Command Sent: ' + cmd);
-    // Here you can integrate MQTT over WebSocket or HTTP POST to ESP32
+const statusDiv = document.getElementById('status');
+const distanceSpan = document.getElementById('distance');
+const connectionDiv = document.getElementById('connection');
+
+const buttons = ['btnF','btnB','btnL','btnR'];
+
+/* ================= MQTT CONNECT ================= */
+
+function connectMQTT() {
+  client = mqtt.connect(MQTT_CONFIG.host, {
+    username: MQTT_CONFIG.username,
+    password: MQTT_CONFIG.password,
+    clientId: MQTT_CONFIG.clientId,
+    clean: true,
+    reconnectPeriod: 5000
+  });
+
+  client.on('connect', () => {
+    connectionDiv.textContent = '✅ Connected to HiveMQ';
+    enableButtons(true);
+
+    client.subscribe([
+      TOPICS.status,
+      TOPICS.distance
+    ]);
+  });
+
+  client.on('message', (topic, message) => {
+    const msg = message.toString();
+
+    if (topic === TOPICS.status) {
+      updateStatus(msg);
+    }
+
+    if (topic === TOPICS.distance) {
+      updateDistance(msg);
+    }
+  });
+
+  client.on('offline', () => {
+    connectionDiv.textContent = '❌ Disconnected';
+    enableButtons(false);
+  });
+
+  client.on('error', () => {
+    connectionDiv.textContent = '⚠️ Connection Error';
+    enableButtons(false);
+  });
+}
+
+/* ================= FUNCTIONS ================= */
+
+function sendCommand(cmd) {
+  if (!client || !client.connected || isMoving) return;
+
+  client.publish(TOPICS.control, cmd, { qos: 1 });
+  isMoving = true;
+  enableButtons(false);
+}
+
+function updateStatus(msg) {
+  msg = msg.toLowerCase();
+
+  if (msg.includes('emergency')) {
+    statusDiv.textContent = 'Emergency';
+    statusDiv.className = 'status emergency';
+    isMoving = false;
+    enableButtons(false);
   }
+  else if (msg.includes('moving')) {
+    statusDiv.textContent = 'Moving';
+    statusDiv.className = 'status moving';
+  }
+  else if (msg.includes('ready') || msg.includes('idle')) {
+    statusDiv.textContent = 'Idle';
+    statusDiv.className = 'status idle';
+    isMoving = false;
+    enableButtons(true);
+  }
+}
 
+function updateDistance(val) {
+  distanceSpan.textContent = val;
+}
+
+function enableButtons(enable) {
+  buttons.forEach(id => {
+    document.getElementById(id).disabled = !enable;
+  });
+}
+
+/* ================= START ================= */
+
+window.onload = connectMQTT;
 </script>
 
 </body>
