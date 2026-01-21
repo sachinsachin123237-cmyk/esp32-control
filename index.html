@@ -164,7 +164,6 @@
             background: rgba(255,255,255,0.15);
         }
 
-        /* Enhanced Visual Map with Black Tape Line */
         .visual-map {
             background: rgba(240, 240, 240, 0.95);
             border-radius: 16px;
@@ -174,7 +173,6 @@
             overflow: hidden;
         }
 
-        /* Black insulation tape line */
         .tape-line {
             position: absolute;
             background: #1a1a1a;
@@ -195,7 +193,6 @@
             width: 200px;
         }
 
-        /* Node markers on the tape */
         .node-marker {
             position: absolute;
             width: 40px;
@@ -219,7 +216,6 @@
             50% { transform: scale(1.1); }
         }
 
-        /* Wheelchair icon */
         .wheelchair-icon {
             position: absolute;
             width: 60px;
@@ -236,7 +232,6 @@
             transition: all 0.5s ease;
         }
 
-        /* Room destinations */
         .room-destination {
             position: absolute;
             padding: 10px 20px;
@@ -340,6 +335,10 @@
                         <div style="font-size: 12px; opacity: 0.7;">OUTPUT</div>
                         <div style="font-size: 32px; font-weight: 800; color: var(--primary);" id="pidOutput">0</div>
                     </div>
+                </div>
+                <div style="margin-top: 15px; text-align: center;">
+                    <div style="font-size: 12px; opacity: 0.7;">ACTIVE SENSORS</div>
+                    <div style="font-size: 24px; font-weight: 700;" id="pidActive">0</div>
                 </div>
             </div>
         </div>
@@ -535,23 +534,26 @@
             addLog(msg, logType);
             
             // Update system state
-            if (msg.includes('Moving') || msg.includes('Rotating')) {
+            if (msg.includes('Moving') || msg.includes('forward') || msg.includes('backward')) {
                 updateSystemState('MOVING');
             } else if (msg.includes('EMERGENCY')) {
                 updateSystemState('EMERGENCY');
-            } else if (msg.includes('complete') || msg.includes('Ready')) {
+            } else if (msg.includes('complete') || msg.includes('Ready') || msg.includes('IDLE')) {
                 updateSystemState('IDLE');
             }
         }
 
         function handlePositionMessage(msg) {
             try {
+                // Try parsing as JSON
                 const data = JSON.parse(msg);
                 
-                if (data.steps) {
+                console.log('Position data:', data); // Debug
+                
+                if (data.steps !== undefined) {
                     document.getElementById('stepsValue').textContent = data.steps.toLocaleString();
                 }
-                if (data.distance) {
+                if (data.distance !== undefined) {
                     document.getElementById('distanceValue').textContent = data.distance.toFixed(2);
                     
                     // Move wheelchair on map
@@ -559,17 +561,44 @@
                     const moveY = Math.min(data.distance * 60, 280);
                     icon.style.bottom = (30 + moveY) + 'px';
                 }
+                
+                // Log progress
+                if (data.steps) {
+                    addLog('📍 Progress: ' + data.steps + ' steps, ' + data.distance.toFixed(2) + 'm', 'info');
+                }
             } catch (e) {
+                // Fallback for non-JSON messages
+                console.error('JSON parse error:', e, 'Message:', msg);
                 addLog('📍 ' + msg, 'info');
             }
         }
 
         function handlePidMessage(msg) {
-            const errMatch = msg.match(/Err=(-?\d+)/);
-            const outMatch = msg.match(/Out=(-?\d+)/);
-            
-            if (errMatch) document.getElementById('pidError').textContent = errMatch[1];
-            if (outMatch) document.getElementById('pidOutput').textContent = outMatch[1];
+            try {
+                // Try parsing as JSON
+                const data = JSON.parse(msg);
+                
+                console.log('PID data:', data); // Debug
+                
+                if (data.error !== undefined) {
+                    document.getElementById('pidError').textContent = data.error;
+                }
+                if (data.output !== undefined) {
+                    document.getElementById('pidOutput').textContent = data.output.toFixed(1);
+                }
+                if (data.active !== undefined) {
+                    document.getElementById('pidActive').textContent = data.active;
+                }
+            } catch (e) {
+                // Fallback: Try regex parsing for old format
+                const errMatch = msg.match(/error[":=\s]+(-?\d+)/i);
+                const outMatch = msg.match(/output[":=\s]+(-?\d+\.?\d*)/i);
+                const actMatch = msg.match(/active[":=\s]+(\d+)/i);
+                
+                if (errMatch) document.getElementById('pidError').textContent = errMatch[1];
+                if (outMatch) document.getElementById('pidOutput').textContent = parseFloat(outMatch[1]).toFixed(1);
+                if (actMatch) document.getElementById('pidActive').textContent = actMatch[1];
+            }
         }
 
         function updateConnectionStatus(connected) {
