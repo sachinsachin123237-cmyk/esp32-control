@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wheelchair Navigation Pro</title>
+    <title>Wheelchair Navigation Pro - Node Based</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -16,64 +16,39 @@
 
         :root {
             --primary: #3b82f6;
-            --primary-dark: #1e40af;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
+            --node: #8b5cf6;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
             color: white;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-            pointer-events: none;
-            z-index: 0;
         }
 
         .dashboard {
             max-width: 1600px;
             margin: 0 auto;
-            position: relative;
-            z-index: 1;
         }
 
         .header {
             text-align: center;
             margin-bottom: 40px;
-            animation: fadeInDown 0.8s ease;
         }
 
         .header h1 {
             font-size: 48px;
             font-weight: 800;
             margin-bottom: 10px;
-            background: linear-gradient(to right, #fff, #a5b4fc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-shadow: 0 0 30px rgba(255,255,255,0.3);
         }
 
-        .header .subtitle {
+        .subtitle {
             font-size: 18px;
             opacity: 0.9;
-            font-weight: 300;
         }
 
         .grid {
@@ -84,20 +59,16 @@
         }
 
         .glass-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
             border-radius: 24px;
             padding: 30px;
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            animation: fadeInUp 0.6s ease backwards;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s;
         }
 
         .glass-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
-            border-color: rgba(255, 255, 255, 0.3);
         }
 
         .card-header {
@@ -110,19 +81,12 @@
         .card-icon {
             width: 48px;
             height: 48px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+            background: rgba(255,255,255,0.1);
             border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 24px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .card-title {
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
         }
 
         .status-badge {
@@ -133,219 +97,48 @@
             border-radius: 50px;
             font-size: 14px;
             font-weight: 600;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.3s ease;
         }
 
-        .status-online {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.3));
-            animation: pulse-glow 2s infinite;
-        }
-
-        .status-offline {
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.3));
-        }
-
-        .status-moving {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(29, 78, 216, 0.3));
-            animation: slide-pulse 1.5s infinite;
-        }
-
-        .status-emergency {
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.5), rgba(153, 27, 27, 0.5));
-            animation: emergency-flash 0.5s infinite;
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
-            50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.8); }
-        }
-
-        @keyframes slide-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        @keyframes emergency-flash {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .connection-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            position: relative;
-        }
-
-        .dot-green {
-            background: #10b981;
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.8);
-        }
-
-        .dot-green::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            border-radius: 50%;
-            border: 2px solid rgba(16, 185, 129, 0.5);
-            animation: ripple 2s infinite;
-        }
-
-        @keyframes ripple {
-            0% {
-                transform: scale(0.8);
-                opacity: 1;
-            }
-            100% {
-                transform: scale(1.8);
-                opacity: 0;
-            }
-        }
-
-        .dot-red {
-            background: #ef4444;
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
-        }
-
-        .metric {
-            margin: 20px 0;
-        }
-
-        .metric-label {
-            font-size: 13px;
-            opacity: 0.8;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 500;
-        }
+        .status-online { background: rgba(16, 185, 129, 0.3); }
+        .status-offline { background: rgba(239, 68, 68, 0.3); }
+        .status-moving { background: rgba(59, 130, 246, 0.3); }
 
         .metric-value {
             font-size: 42px;
             font-weight: 800;
-            line-height: 1;
-            background: linear-gradient(to right, #fff, #e0e7ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
-        .metric-unit {
-            font-size: 18px;
-            opacity: 0.7;
-            font-weight: 400;
-            margin-left: 5px;
-        }
-
-        .progress-container {
-            margin-top: 15px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6);
-            background-size: 200% 100%;
-            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 10px;
-            animation: gradient-flow 2s linear infinite;
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
-        }
-
-        @keyframes gradient-flow {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
-        }
-
-        .control-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
+        .node-counter {
+            background: rgba(139, 92, 246, 0.2);
+            border: 2px solid var(--node);
+            border-radius: 16px;
+            padding: 20px;
             margin-top: 20px;
+            text-align: center;
+        }
+
+        .node-display {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--node);
+            margin: 10px 0;
         }
 
         .control-btn {
-            padding: 0;
-            min-height: 80px;
+            padding: 20px;
             border: none;
             border-radius: 16px;
             color: white;
             font-size: 16px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .control-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, transparent, rgba(255,255,255,0.1));
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .control-btn:hover:not(:disabled)::before {
-            opacity: 1;
+            background: rgba(255,255,255,0.1);
+            transition: all 0.3s;
         }
 
         .control-btn:hover:not(:disabled) {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            border-color: rgba(255,255,255,0.4);
-        }
-
-        .control-btn:active:not(:disabled) {
-            transform: translateY(-1px) scale(0.98);
+            transform: translateY(-3px);
+            background: rgba(255,255,255,0.2);
         }
 
         .control-btn:disabled {
@@ -353,218 +146,107 @@
             cursor: not-allowed;
         }
 
-        .control-btn .btn-icon {
-            font-size: 32px;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-        }
-
-        .btn-forward { grid-column: 2; }
-        .btn-backward { grid-column: 2; }
-
-        .btn-stop {
-            grid-column: 1 / -1;
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(153, 27, 27, 0.3));
-            border-color: rgba(239, 68, 68, 0.5);
-            animation: stop-pulse 2s infinite;
-        }
-
-        @keyframes stop-pulse {
-            0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
-            50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.7); }
-        }
-
         .room-btn {
             padding: 20px;
             margin: 12px 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
-            backdrop-filter: blur(10px);
+            background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
             border-radius: 16px;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .room-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .room-btn:hover:not(:disabled)::before {
-            left: 100%;
+            transition: all 0.3s;
         }
 
         .room-btn:hover:not(:disabled) {
             transform: translateX(5px);
-            border-color: rgba(255,255,255,0.4);
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            background: rgba(255,255,255,0.15);
         }
 
-        .room-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .room-info {
-            flex: 1;
-        }
-
-        .room-name {
-            font-weight: 700;
-            font-size: 16px;
-            margin-bottom: 5px;
-        }
-
-        .room-coords {
-            font-size: 13px;
-            opacity: 0.7;
-        }
-
-        .room-arrow {
-            font-size: 24px;
-            opacity: 0.7;
-            transition: transform 0.3s ease;
-        }
-
-        .room-btn:hover:not(:disabled) .room-arrow {
-            transform: translateX(5px);
-        }
-
-        .pid-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .pid-item {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .pid-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: scale(1.05);
-        }
-
-        .pid-label {
-            font-size: 12px;
-            opacity: 0.7;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .pid-value {
-            font-size: 32px;
-            font-weight: 800;
-            background: linear-gradient(to right, #10b981, #3b82f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
+        /* Enhanced Visual Map with Black Tape Line */
         .visual-map {
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(240, 240, 240, 0.95);
             border-radius: 16px;
             padding: 30px;
             position: relative;
-            height: 400px;
+            height: 500px;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .map-grid {
+        /* Black insulation tape line */
+        .tape-line {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
-            background-size: 40px 40px;
-            animation: grid-flow 20s linear infinite;
+            background: #1a1a1a;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
-        @keyframes grid-flow {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(40px, 40px); }
-        }
-
-        .wheelchair-icon {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #3b82f6, #1e40af);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
+        .tape-vertical {
+            width: 15px;
+            left: 100px;
             bottom: 30px;
-            left: 30px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            z-index: 10;
+            height: 300px;
         }
 
-        .wheelchair-icon::after {
-            content: '';
+        .tape-horizontal {
+            height: 15px;
+            top: 50%;
+            left: 100px;
+            width: 200px;
+        }
+
+        /* Node markers on the tape */
+        .node-marker {
             position: absolute;
-            width: 100%;
-            height: 100%;
+            width: 40px;
+            height: 40px;
+            background: var(--node);
             border-radius: 50%;
-            border: 3px solid rgba(59, 130, 246, 0.5);
-            animation: sonar 2s infinite;
-        }
-
-        @keyframes sonar {
-            0% {
-                transform: scale(1);
-                opacity: 1;
-            }
-            100% {
-                transform: scale(2);
-                opacity: 0;
-            }
-        }
-
-        .room-marker {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #10b981, #059669);
-            border-radius: 50%;
+            border: 3px solid white;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: 800;
-            font-size: 20px;
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            animation: marker-bounce 2s infinite;
+            font-size: 18px;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
+            z-index: 5;
+            animation: node-pulse 2s infinite;
         }
 
-        @keyframes marker-bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+        @keyframes node-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Wheelchair icon */
+        .wheelchair-icon {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
+            border: 3px solid white;
+            z-index: 10;
+            transition: all 0.5s ease;
+        }
+
+        /* Room destinations */
+        .room-destination {
+            position: absolute;
+            padding: 10px 20px;
+            background: var(--success);
+            color: white;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            z-index: 3;
         }
 
         .log-container {
@@ -575,171 +257,88 @@
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 13px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-        }
-
-        .log-container::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .log-container::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-        }
-
-        .log-container::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-        }
-
-        .log-container::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.3);
         }
 
         .log-entry {
             color: rgba(255, 255, 255, 0.8);
             margin: 8px 0;
             padding: 10px;
-            border-left: 3px solid rgba(59, 130, 246, 0.5);
+            border-left: 3px solid var(--primary);
             padding-left: 15px;
             background: rgba(255, 255, 255, 0.02);
             border-radius: 0 8px 8px 0;
-            transition: all 0.3s ease;
-            animation: log-slide 0.3s ease;
         }
 
-        @keyframes log-slide {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .log-entry:hover {
-            background: rgba(255, 255, 255, 0.05);
-            transform: translateX(5px);
-        }
-
-        .log-entry.error {
-            border-left-color: #ef4444;
-            color: #fca5a5;
-        }
-
-        .log-entry.success {
-            border-left-color: #10b981;
-            color: #6ee7b7;
-        }
-
-        .log-entry.warning {
-            border-left-color: #f59e0b;
-            color: #fcd34d;
-        }
-
-        @media (max-width: 1200px) {
-            .grid {
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            }
-        }
-
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 32px;
-            }
-            
-            .glass-card {
-                padding: 20px;
-            }
-            
-            .control-btn {
-                min-height: 70px;
-            }
-        }
-
-        .keyboard-hint {
-            text-align: center;
-            margin-top: 20px;
-            opacity: 0.6;
-            font-size: 13px;
-            animation: fadeInUp 1s ease 0.5s backwards;
-        }
+        .log-entry.error { border-left-color: var(--danger); }
+        .log-entry.success { border-left-color: var(--success); }
+        .log-entry.warning { border-left-color: var(--warning); }
+        .log-entry.node { border-left-color: var(--node); font-weight: 700; }
     </style>
 </head>
 <body>
     <div class="dashboard">
         <div class="header">
             <h1>🦽 Wheelchair Navigation Pro</h1>
-            <p class="subtitle">Precision Angle-Based Control with Real-Time PID</p>
+            <p class="subtitle">Node-Based Navigation with Black Tape Line Following</p>
         </div>
 
         <div class="grid">
-            <!-- Connection Status -->
-            <div class="glass-card" style="animation-delay: 0.1s">
+            <!-- Connection & Status -->
+            <div class="glass-card">
                 <div class="card-header">
                     <div class="card-icon">📡</div>
-                    <div class="card-title">Connection</div>
+                    <div style="font-size: 20px; font-weight: 700;">Connection</div>
                 </div>
                 <div class="status-badge status-offline" id="connectionStatus">
-                    <span class="connection-dot dot-red"></span>
+                    <span>●</span>
                     <span>Connecting...</span>
                 </div>
-                <div class="metric">
-                    <div class="metric-label">System State</div>
+                <div style="margin-top: 20px;">
+                    <div style="font-size: 13px; opacity: 0.8;">System State</div>
                     <div id="systemState" class="status-badge status-offline">IDLE</div>
                 </div>
             </div>
 
-            <!-- Position Tracking -->
-            <div class="glass-card" style="animation-delay: 0.2s">
+            <!-- Position & Progress -->
+            <div class="glass-card">
                 <div class="card-header">
                     <div class="card-icon">📍</div>
-                    <div class="card-title">Position</div>
+                    <div style="font-size: 20px; font-weight: 700;">Position</div>
                 </div>
-                <div class="metric">
-                    <div class="metric-label">Distance</div>
+                <div>
+                    <div style="font-size: 13px; opacity: 0.8;">Distance</div>
                     <div>
                         <span class="metric-value" id="distanceValue">0.00</span>
-                        <span class="metric-unit">m</span>
+                        <span style="font-size: 18px; opacity: 0.7;">m</span>
                     </div>
                 </div>
-                <div class="metric">
-                    <div class="metric-label">Steps</div>
-                    <div>
-                        <span class="metric-value" id="stepsValue" style="font-size: 28px;">0</span>
-                    </div>
+                <div style="margin-top: 20px;">
+                    <div style="font-size: 13px; opacity: 0.8;">Steps</div>
+                    <div class="metric-value" id="stepsValue" style="font-size: 28px;">0</div>
                 </div>
-                <div class="progress-container">
-                    <div class="metric-label">Progress</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
-                    </div>
+                
+                <!-- Node Counter -->
+                <div class="node-counter">
+                    <div style="font-size: 13px; opacity: 0.9;">🔵 NODES DETECTED</div>
+                    <div class="node-display" id="nodeCounter">0</div>
+                    <div style="font-size: 12px; opacity: 0.7;" id="nodeTarget">Target: -</div>
                 </div>
             </div>
 
             <!-- PID Status -->
-            <div class="glass-card" style="animation-delay: 0.3s">
+            <div class="glass-card">
                 <div class="card-header">
                     <div class="card-icon">🎯</div>
-                    <div class="card-title">PID Control</div>
+                    <div style="font-size: 20px; font-weight: 700;">PID Control</div>
                 </div>
-                <div class="pid-grid">
-                    <div class="pid-item">
-                        <div class="pid-label">Position</div>
-                        <div class="pid-value" id="pidPosition">0</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; text-align: center;">
+                        <div style="font-size: 12px; opacity: 0.7;">ERROR</div>
+                        <div style="font-size: 32px; font-weight: 800; color: var(--success);" id="pidError">0</div>
                     </div>
-                    <div class="pid-item">
-                        <div class="pid-label">Correction</div>
-                        <div class="pid-value" id="pidCorrection">0</div>
-                    </div>
-                </div>
-                <div class="metric" style="margin-top: 20px;">
-                    <div class="metric-label">Line Status</div>
-                    <div id="lineStatus" class="status-badge" style="background: rgba(255,255,255,0.1);">
-                        Waiting...
+                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; text-align: center;">
+                        <div style="font-size: 12px; opacity: 0.7;">OUTPUT</div>
+                        <div style="font-size: 32px; font-weight: 800; color: var(--primary);" id="pidOutput">0</div>
                     </div>
                 </div>
             </div>
@@ -747,101 +346,105 @@
 
         <div class="grid">
             <!-- Manual Controls -->
-            <div class="glass-card" style="animation-delay: 0.4s">
+            <div class="glass-card">
                 <div class="card-header">
                     <div class="card-icon">🎮</div>
-                    <div class="card-title">Manual Control</div>
+                    <div style="font-size: 20px; font-weight: 700;">Manual Control</div>
                 </div>
-                <div class="control-grid">
-                    <button class="control-btn btn-forward" onclick="sendCommand('F')" disabled>
-                        <span class="btn-icon">▲</span>
-                        <span>FORWARD</span>
-                    </button>
-                    <button class="control-btn" onclick="sendCommand('L')" disabled>
-                        <span class="btn-icon">◄</span>
-                        <span>LEFT 90°</span>
-                    </button>
-                    <button class="control-btn" onclick="sendCommand('R')" disabled>
-                        <span class="btn-icon">►</span>
-                        <span>RIGHT 90°</span>
-                    </button>
-                    <button class="control-btn btn-backward" onclick="sendCommand('B')" disabled>
-                        <span class="btn-icon">▼</span>
-                        <span>BACK</span>
-                    </button>
-                    <button class="control-btn btn-stop" onclick="sendCommand('STOP')" disabled>
-                        <span class="btn-icon">🛑</span>
-                        <span>STOP</span>
-                    </button>
-                </div>
-                <div class="keyboard-hint">
-                    ⌨️ Arrow keys & Space to control
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                    <div></div>
+                    <button class="control-btn" onclick="sendCommand('F')" disabled>▲<br>FORWARD</button>
+                    <div></div>
+                    <button class="control-btn" onclick="sendCommand('L')" disabled>◄<br>LEFT 90°</button>
+                    <button class="control-btn" style="background: rgba(239, 68, 68, 0.3);" onclick="sendCommand('STOP')" disabled>🛑<br>STOP</button>
+                    <button class="control-btn" onclick="sendCommand('R')" disabled>►<br>RIGHT 90°</button>
+                    <div></div>
+                    <button class="control-btn" onclick="sendCommand('B')" disabled>▼<br>BACK</button>
+                    <div></div>
                 </div>
             </div>
 
-            <!-- Room Navigation -->
-            <div class="glass-card" style="animation-delay: 0.5s">
+            <!-- Room Navigation (Node-Based) -->
+            <div class="glass-card">
                 <div class="card-header">
                     <div class="card-icon">🗺️</div>
-                    <div class="card-title">Room Navigation</div>
+                    <div style="font-size: 20px; font-weight: 700;">Node Navigation</div>
                 </div>
                 <button class="room-btn" onclick="sendCommand('ROOM1')" disabled>
-                    <div class="room-info">
-                        <div class="room-name">🏠 Room 1</div>
-                        <div class="room-coords">2m forward → Right 90° → 1m forward</div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 16px;">🏠 Room 1</div>
+                        <div style="font-size: 13px; opacity: 0.7;">Node 1 → Right 90° → Continue</div>
                     </div>
-                    <span class="room-arrow">→</span>
+                    <span style="font-size: 24px;">→</span>
                 </button>
                 <button class="room-btn" onclick="sendCommand('ROOM2')" disabled>
-                    <div class="room-info">
-                        <div class="room-name">🏠 Room 2</div>
-                        <div class="room-coords">3m forward → Left 90° → 1m forward</div>
+                    <div>
+                        <div style="font-weight: 700; font-size: 16px;">🏠 Room 2</div>
+                        <div style="font-size: 13px; opacity: 0.7;">Node 1 → Left 90° → Continue</div>
                     </div>
-                    <span class="room-arrow">→</span>
+                    <span style="font-size: 24px;">→</span>
                 </button>
-                <button class="room-btn" onclick="sendCommand('RETURN1')" disabled>
-                    <div class="room-info">
-                        <div class="room-name">↩️ Return from Room 1</div>
-                        <div class="room-coords">Automatic reverse path</div>
+                <button class="room-btn" onclick="sendCommand('RETURN')" disabled>
+                    <div>
+                        <div style="font-weight: 700; font-size: 16px;">↩️ Return to Start</div>
+                        <div style="font-size: 13px; opacity: 0.7;">Automatic reverse path</div>
                     </div>
-                    <span class="room-arrow">←</span>
-                </button>
-                <button class="room-btn" onclick="sendCommand('RETURN2')" disabled>
-                    <div class="room-info">
-                        <div class="room-name">↩️ Return from Room 2</div>
-                        <div class="room-coords">Automatic reverse path</div>
-                    </div>
-                    <span class="room-arrow">←</span>
-                </button>
-                <button class="room-btn" onclick="sendCommand('U')" disabled>
-                    <div class="room-info">
-                        <div class="room-name">🔄 U-Turn</div>
-                        <div class="room-coords">180° rotation (2 × 90°)</div>
-                    </div>
-                    <span class="room-arrow">⟲</span>
+                    <span style="font-size: 24px;">←</span>
                 </button>
             </div>
 
-            <!-- Visual Map -->
-            <div class="glass-card" style="animation-delay: 0.6s">
+            <!-- Visual Map with Black Tape -->
+            <div class="glass-card">
                 <div class="card-header">
                     <div class="card-icon">🗺️</div>
-                    <div class="card-title">Live Map</div>
+                    <div style="font-size: 20px; font-weight: 700;">Live Map</div>
                 </div>
                 <div class="visual-map">
-                    <div class="map-grid"></div>
-                    <div class="wheelchair-icon" id="wheelchairIcon">🦽</div>
-                    <div class="room-marker" style="bottom: 200px; left: 30px;">1</div>
-                    <div class="room-marker" style="bottom: 280px; left: 30px; background: linear-gradient(135deg, #f59e0b, #d97706);">2</div>
+                    <!-- Start Point -->
+                    <div style="position: absolute; bottom: 20px; left: 70px; font-weight: 700; color: #333;">START</div>
+                    
+                    <!-- Main vertical black tape line -->
+                    <div class="tape-line tape-vertical"></div>
+                    
+                    <!-- Node 1 on vertical line -->
+                    <div class="node-marker" id="mapNode1" style="bottom: 180px; left: 93px;">1</div>
+                    
+                    <!-- Branch to Room 1 (right turn) -->
+                    <div class="tape-line" style="width: 150px; height: 15px; top: 48%; left: 115px;"></div>
+                    <div class="room-destination" style="top: 45%; right: 80px;">Room 1</div>
+                    
+                    <!-- Branch to Room 2 (left turn from node) -->
+                    <div class="tape-line" style="width: 120px; height: 15px; top: 35%; right: 320px;"></div>
+                    <div class="room-destination" style="top: 32%; left: 30px;">Room 2</div>
+                    
+                    <!-- Wheelchair icon -->
+                    <div class="wheelchair-icon" id="wheelchairIcon" style="bottom: 30px; left: 78px;">🦽</div>
+                    
+                    <!-- Legend -->
+                    <div style="position: absolute; bottom: 20px; right: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; font-size: 12px; color: #333;">
+                        <div style="font-weight: 700; margin-bottom: 8px;">Legend:</div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin: 5px 0;">
+                            <div style="width: 20px; height: 3px; background: #1a1a1a;"></div>
+                            <span>Black Tape Line</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin: 5px 0;">
+                            <div style="width: 16px; height: 16px; background: var(--node); border-radius: 50%;"></div>
+                            <span>Node Marker</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin: 5px 0;">
+                            <div style="width: 16px; height: 16px; background: var(--success); border-radius: 4px;"></div>
+                            <span>Destination</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Activity Log -->
-        <div class="glass-card" style="animation-delay: 0.7s">
+        <div class="glass-card">
             <div class="card-header">
                 <div class="card-icon">📋</div>
-                <div class="card-title">Activity Log</div>
+                <div style="font-size: 20px; font-weight: 700;">Activity Log</div>
             </div>
             <div class="log-container" id="logContainer">
                 <div class="log-entry">System initializing...</div>
@@ -865,9 +468,8 @@
         };
 
         let client;
-        let currentSteps = 0;
-        let currentDistance = 0;
-        let currentRotation = 0;
+        let nodeCount = 0;
+        let nodeTarget = 0;
 
         function connectMQTT() {
             addLog('Connecting to MQTT broker...', 'info');
@@ -875,167 +477,127 @@
             client = mqtt.connect(MQTT_CONFIG.host, {
                 username: MQTT_CONFIG.username,
                 password: MQTT_CONFIG.password,
-                clientId: MQTT_CONFIG.clientId,
-                clean: true,
-                reconnectPeriod: 5000
+                clientId: MQTT_CONFIG.clientId
             });
 
             client.on('connect', () => {
                 addLog('✓ Connected to MQTT broker', 'success');
                 updateConnectionStatus(true);
-                
-                client.subscribe([TOPICS.status, TOPICS.position, TOPICS.pid], (err) => {
-                    if (!err) {
-                        addLog('✓ Subscribed to all topics', 'success');
-                    }
-                });
+                client.subscribe([TOPICS.status, TOPICS.position, TOPICS.pid]);
             });
 
             client.on('message', (topic, message) => {
                 const msg = message.toString();
                 
-                if (topic === TOPICS.status) {
-                    handleStatusMessage(msg);
-                } else if (topic === TOPICS.position) {
-                    handlePositionMessage(msg);
-                } else if (topic === TOPICS.pid) {
-                    handlePidMessage(msg);
-                }
+                if (topic === TOPICS.status) handleStatusMessage(msg);
+                else if (topic === TOPICS.position) handlePositionMessage(msg);
+                else if (topic === TOPICS.pid) handlePidMessage(msg);
             });
 
             client.on('error', (error) => {
                 addLog('❌ MQTT Error: ' + error, 'error');
                 updateConnectionStatus(false);
             });
-
-            client.on('offline', () => {
-                addLog('⚠️ MQTT Offline', 'warning');
-                updateConnectionStatus(false);
-            });
-
-            client.on('reconnect', () => {
-                addLog('🔄 Reconnecting...', 'info');
-            });
         }
 
         function handleStatusMessage(msg) {
             let logType = 'info';
+            
+            // Node detection
+            if (msg.includes('NODE DETECTED')) {
+                logType = 'node';
+                const match = msg.match(/Count: (\d+)/);
+                if (match) {
+                    nodeCount = parseInt(match[1]);
+                    document.getElementById('nodeCounter').textContent = nodeCount;
+                    
+                    // Highlight node on map
+                    const nodeEl = document.getElementById('mapNode' + nodeCount);
+                    if (nodeEl) {
+                        nodeEl.style.background = 'var(--success)';
+                        nodeEl.style.transform = 'scale(1.3)';
+                    }
+                }
+            }
+            
+            // Node target
+            if (msg.includes('/')) {
+                const match = msg.match(/(\d+) \/ (\d+)/);
+                if (match) {
+                    nodeTarget = parseInt(match[2]);
+                    document.getElementById('nodeTarget').textContent = 'Target: ' + nodeTarget;
+                }
+            }
+            
             if (msg.includes('EMERGENCY')) logType = 'error';
-            else if (msg.includes('✓') || msg.includes('complete')) logType = 'success';
-            else if (msg.includes('Rotating')) logType = 'warning';
+            else if (msg.includes('✓')) logType = 'success';
             
             addLog(msg, logType);
             
-            if (msg.includes('Moving') || msg.includes('Rotating') || msg.includes('Segment')) {
+            // Update system state
+            if (msg.includes('Moving') || msg.includes('Rotating')) {
                 updateSystemState('MOVING');
             } else if (msg.includes('EMERGENCY')) {
                 updateSystemState('EMERGENCY');
-            } else if (msg.includes('Ready') || msg.includes('complete') || msg.includes('cleared')) {
+            } else if (msg.includes('complete') || msg.includes('Ready')) {
                 updateSystemState('IDLE');
-            }
-            
-            const match = msg.match(/(\d+) steps/);
-            if (match) {
-                currentSteps = parseInt(match[1]);
-                currentDistance = currentSteps / 64000;
-                updateProgressDisplay();
-            }
-            
-            if (msg.includes('LEFT 90°')) {
-                currentRotation = (currentRotation - 90 + 360) % 360;
-                updateWheelchairRotation();
-            } else if (msg.includes('RIGHT 90°')) {
-                currentRotation = (currentRotation + 90) % 360;
-                updateWheelchairRotation();
-            } else if (msg.includes('180°')) {
-                currentRotation = (currentRotation + 180) % 360;
-                updateWheelchairRotation();
             }
         }
 
         function handlePositionMessage(msg) {
-            addLog('📍 ' + msg, 'info');
+            try {
+                const data = JSON.parse(msg);
+                
+                if (data.steps) {
+                    document.getElementById('stepsValue').textContent = data.steps.toLocaleString();
+                }
+                if (data.distance) {
+                    document.getElementById('distanceValue').textContent = data.distance.toFixed(2);
+                    
+                    // Move wheelchair on map
+                    const icon = document.getElementById('wheelchairIcon');
+                    const moveY = Math.min(data.distance * 60, 280);
+                    icon.style.bottom = (30 + moveY) + 'px';
+                }
+            } catch (e) {
+                addLog('📍 ' + msg, 'info');
+            }
         }
 
         function handlePidMessage(msg) {
-            const posMatch = msg.match(/Pos=(-?\d+)/);
-            const corrMatch = msg.match(/Corr=(-?\d+)/);
+            const errMatch = msg.match(/Err=(-?\d+)/);
+            const outMatch = msg.match(/Out=(-?\d+)/);
             
-            if (posMatch) {
-                const pos = parseInt(posMatch[1]);
-                document.getElementById('pidPosition').textContent = pos;
-                updateLineStatus(pos);
-            }
-            if (corrMatch) {
-                document.getElementById('pidCorrection').textContent = corrMatch[1];
-            }
+            if (errMatch) document.getElementById('pidError').textContent = errMatch[1];
+            if (outMatch) document.getElementById('pidOutput').textContent = outMatch[1];
         }
 
         function updateConnectionStatus(connected) {
-            const statusEl = document.getElementById('connectionStatus');
+            const el = document.getElementById('connectionStatus');
             if (connected) {
-                statusEl.innerHTML = '<span class="connection-dot dot-green"></span><span>Connected</span>';
-                statusEl.className = 'status-badge status-online';
+                el.innerHTML = '<span>●</span><span>Connected</span>';
+                el.className = 'status-badge status-online';
                 enableAllButtons(true);
             } else {
-                statusEl.innerHTML = '<span class="connection-dot dot-red"></span><span>Disconnected</span>';
-                statusEl.className = 'status-badge status-offline';
+                el.innerHTML = '<span>●</span><span>Disconnected</span>';
+                el.className = 'status-badge status-offline';
                 enableAllButtons(false);
             }
         }
 
         function updateSystemState(state) {
-            const stateEl = document.getElementById('systemState');
-            stateEl.textContent = state;
-            
-            if (state === 'MOVING') {
-                stateEl.className = 'status-badge status-moving';
-            } else if (state === 'EMERGENCY') {
-                stateEl.className = 'status-badge status-emergency';
-            } else {
-                stateEl.className = 'status-badge status-online';
-            }
-        }
-
-        function updateProgressDisplay() {
-            document.getElementById('stepsValue').textContent = currentSteps.toLocaleString();
-            document.getElementById('distanceValue').textContent = currentDistance.toFixed(2);
-            
-            const progress = Math.min((currentSteps % 64000) / 640, 100);
-            document.getElementById('progressBar').style.width = progress + '%';
-            
-            const icon = document.getElementById('wheelchairIcon');
-            const moveX = Math.min(currentDistance * 30, 300);
-            icon.style.left = (30 + moveX) + 'px';
-        }
-
-        function updateWheelchairRotation() {
-            const icon = document.getElementById('wheelchairIcon');
-            icon.style.transform = `rotate(${currentRotation}deg)`;
-        }
-
-        function updateLineStatus(position) {
-            const statusEl = document.getElementById('lineStatus');
-            if (Math.abs(position) < 500) {
-                statusEl.textContent = '✓ Centered';
-                statusEl.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.3))';
-            } else if (Math.abs(position) < 1500) {
-                statusEl.textContent = '⚠️ Minor Drift';
-                statusEl.style.background = 'linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.3))';
-            } else {
-                statusEl.textContent = '⚡ Correcting';
-                statusEl.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(29, 78, 216, 0.3))';
-            }
+            const el = document.getElementById('systemState');
+            el.textContent = state;
+            el.className = 'status-badge ' + 
+                (state === 'MOVING' ? 'status-moving' : 
+                 state === 'EMERGENCY' ? 'status-offline' : 'status-online');
         }
 
         function addLog(message, type = 'info') {
             const container = document.getElementById('logContainer');
             const entry = document.createElement('div');
             entry.className = 'log-entry ' + type;
-            
-            const timestamp = new Date().toLocaleTimeString();
-            entry.textContent = `[${timestamp}] ${message}`;
-            
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             container.appendChild(entry);
             container.scrollTop = container.scrollHeight;
             
@@ -1045,9 +607,7 @@
         }
 
         function enableAllButtons(enabled) {
-            document.querySelectorAll('button').forEach(btn => {
-                btn.disabled = !enabled;
-            });
+            document.querySelectorAll('button').forEach(btn => btn.disabled = !enabled);
         }
 
         function sendCommand(cmd) {
@@ -1056,15 +616,26 @@
                 return;
             }
             
-            client.publish(TOPICS.control, cmd, { qos: 1 }, (err) => {
-                if (err) {
-                    addLog('❌ Failed to send: ' + cmd, 'error');
-                } else {
-                    addLog('✓ Command sent: ' + cmd, 'success');
-                }
-            });
+            // Reset node count on new navigation
+            if (cmd.startsWith('ROOM')) {
+                nodeCount = 0;
+                document.getElementById('nodeCounter').textContent = '0';
+                document.querySelectorAll('.node-marker').forEach(n => {
+                    n.style.background = 'var(--node)';
+                    n.style.transform = 'scale(1)';
+                });
+            }
+            
+            client.publish(TOPICS.control, cmd);
+            addLog('✓ Command sent: ' + cmd, 'success');
         }
 
+        window.addEventListener('load', () => {
+            addLog('🚀 Dashboard initialized', 'success');
+            connectMQTT();
+        });
+
+        // Keyboard controls
         document.addEventListener('keydown', (e) => {
             if (!client || !client.connected) return;
             
@@ -1073,21 +644,13 @@
                 'ArrowDown': 'B',
                 'ArrowLeft': 'L',
                 'ArrowRight': 'R',
-                ' ': 'STOP',
-                'Escape': 'STOP',
-                'u': 'U',
-                'U': 'U'
+                ' ': 'STOP'
             };
             
             if (keyMap[e.key]) {
                 e.preventDefault();
                 sendCommand(keyMap[e.key]);
             }
-        });
-
-        window.addEventListener('load', () => {
-            addLog('🚀 Dashboard initialized', 'success');
-            connectMQTT();
         });
     </script>
 </body>
