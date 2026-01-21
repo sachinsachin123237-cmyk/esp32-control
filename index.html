@@ -488,9 +488,22 @@
             client.on('message', (topic, message) => {
                 const msg = message.toString();
                 
-                if (topic === TOPICS.status) handleStatusMessage(msg);
-                else if (topic === TOPICS.position) handlePositionMessage(msg);
-                else if (topic === TOPICS.pid) handlePidMessage(msg);
+                console.log('📨 MQTT MESSAGE RECEIVED:');
+                console.log('   Topic:', topic);
+                console.log('   Message:', msg);
+                
+                if (topic === TOPICS.status) {
+                    console.log('➡️ Routing to STATUS handler');
+                    handleStatusMessage(msg);
+                } else if (topic === TOPICS.position) {
+                    console.log('➡️ Routing to POSITION handler');
+                    handlePositionMessage(msg);
+                } else if (topic === TOPICS.pid) {
+                    console.log('➡️ Routing to PID handler');
+                    handlePidMessage(msg);
+                } else {
+                    console.log('⚠️ Unknown topic!');
+                }
             });
 
             client.on('error', (error) => {
@@ -544,16 +557,28 @@
         }
 
         function handlePositionMessage(msg) {
+            console.log('🔵 RAW POSITION MESSAGE:', msg);
+            console.log('🔵 Message type:', typeof msg);
+            console.log('🔵 Message length:', msg.length);
+            
             try {
                 // Try parsing as JSON
                 const data = JSON.parse(msg);
                 
-                console.log('Position data:', data); // Debug
+                console.log('✅ JSON PARSED SUCCESS:', data);
+                console.log('   - steps:', data.steps);
+                console.log('   - distance:', data.distance);
                 
                 if (data.steps !== undefined) {
+                    console.log('🟢 Updating steps to:', data.steps);
                     document.getElementById('stepsValue').textContent = data.steps.toLocaleString();
+                    document.getElementById('stepsValue').style.color = '#10b981'; // Flash green
+                    setTimeout(() => {
+                        document.getElementById('stepsValue').style.color = '';
+                    }, 500);
                 }
                 if (data.distance !== undefined) {
+                    console.log('🟢 Updating distance to:', data.distance);
                     document.getElementById('distanceValue').textContent = data.distance.toFixed(2);
                     
                     // Move wheelchair on map
@@ -564,32 +589,43 @@
                 
                 // Log progress
                 if (data.steps) {
-                    addLog('📍 Progress: ' + data.steps + ' steps, ' + data.distance.toFixed(2) + 'm', 'info');
+                    addLog('📍 Progress: ' + data.steps + ' steps, ' + data.distance.toFixed(2) + 'm', 'success');
                 }
             } catch (e) {
                 // Fallback for non-JSON messages
-                console.error('JSON parse error:', e, 'Message:', msg);
-                addLog('📍 ' + msg, 'info');
+                console.error('❌ JSON PARSE FAILED:', e);
+                console.error('❌ Raw message was:', msg);
+                addLog('📍 Non-JSON: ' + msg, 'warning');
             }
         }
 
         function handlePidMessage(msg) {
+            console.log('🟣 RAW PID MESSAGE:', msg);
+            
             try {
                 // Try parsing as JSON
                 const data = JSON.parse(msg);
                 
-                console.log('PID data:', data); // Debug
+                console.log('✅ PID JSON PARSED:', data);
                 
                 if (data.error !== undefined) {
+                    console.log('🟢 Updating PID error to:', data.error);
                     document.getElementById('pidError').textContent = data.error;
+                    document.getElementById('pidError').style.color = '#10b981';
+                    setTimeout(() => {
+                        document.getElementById('pidError').style.color = 'var(--success)';
+                    }, 300);
                 }
                 if (data.output !== undefined) {
+                    console.log('🟢 Updating PID output to:', data.output);
                     document.getElementById('pidOutput').textContent = data.output.toFixed(1);
                 }
                 if (data.active !== undefined) {
                     document.getElementById('pidActive').textContent = data.active;
                 }
             } catch (e) {
+                console.error('❌ PID JSON PARSE FAILED:', e);
+                console.error('❌ Raw message was:', msg);
                 // Fallback: Try regex parsing for old format
                 const errMatch = msg.match(/error[":=\s]+(-?\d+)/i);
                 const outMatch = msg.match(/output[":=\s]+(-?\d+\.?\d*)/i);
