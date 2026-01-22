@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wheelchair Navigation Pro - Node Based</title>
+    <title>Wheelchair Navigation Pro - Enhanced</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -20,6 +20,7 @@
             --warning: #f59e0b;
             --danger: #ef4444;
             --node: #8b5cf6;
+            --angle: #ec4899;
         }
 
         body {
@@ -44,6 +45,7 @@
             font-size: 48px;
             font-weight: 800;
             margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
 
         .subtitle {
@@ -108,6 +110,22 @@
             font-weight: 800;
         }
 
+        .angle-display {
+            background: rgba(236, 72, 153, 0.2);
+            border: 2px solid var(--angle);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .angle-value {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--angle);
+            margin: 10px 0;
+        }
+
         .node-counter {
             background: rgba(139, 92, 246, 0.2);
             border: 2px solid var(--node);
@@ -123,6 +141,51 @@
             color: var(--node);
             margin: 10px 0;
         }
+
+        .compass {
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+            position: relative;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.2);
+        }
+
+        .compass-needle {
+            position: absolute;
+            width: 4px;
+            height: 60px;
+            background: linear-gradient(to bottom, #ef4444 0%, #ef4444 50%, #3b82f6 50%, #3b82f6 100%);
+            left: 50%;
+            top: 20%;
+            transform-origin: bottom center;
+            transition: transform 0.5s ease;
+            border-radius: 2px;
+        }
+
+        .compass-center {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .compass-label {
+            position: absolute;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .compass-n { top: 10px; left: 50%; transform: translateX(-50%); color: #ef4444; }
+        .compass-e { right: 10px; top: 50%; transform: translateY(-50%); }
+        .compass-s { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .compass-w { left: 10px; top: 50%; transform: translateY(-50%); }
 
         .control-btn {
             padding: 20px;
@@ -268,13 +331,40 @@
         .log-entry.success { border-left-color: var(--success); }
         .log-entry.warning { border-left-color: var(--warning); }
         .log-entry.node { border-left-color: var(--node); font-weight: 700; }
+        .log-entry.angle { border-left-color: var(--angle); font-weight: 700; }
+
+        .dual-metric {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .mini-metric {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .mini-value {
+            font-size: 28px;
+            font-weight: 800;
+            margin: 5px 0;
+        }
+
+        .mini-label {
+            font-size: 11px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
     <div class="dashboard">
         <div class="header">
             <h1>🦽 Wheelchair Navigation Pro</h1>
-            <p class="subtitle">Node-Based Navigation with Black Tape Line Following</p>
+            <p class="subtitle">Node-Based Navigation with Real-Time Angle Tracking</p>
         </div>
 
         <div class="grid">
@@ -292,29 +382,57 @@
                     <div style="font-size: 13px; opacity: 0.8;">System State</div>
                     <div id="systemState" class="status-badge status-offline">IDLE</div>
                 </div>
+                <div style="margin-top: 20px;">
+                    <div style="font-size: 13px; opacity: 0.8;">Current Motion</div>
+                    <div id="motionType" style="font-size: 16px; font-weight: 600; margin-top: 5px;">-</div>
+                </div>
             </div>
 
-            <!-- Position & Progress -->
+            <!-- Position & Angle -->
             <div class="glass-card">
                 <div class="card-header">
                     <div class="card-icon">📍</div>
-                    <div style="font-size: 20px; font-weight: 700;">Position</div>
+                    <div style="font-size: 20px; font-weight: 700;">Position & Orientation</div>
                 </div>
-                <div>
-                    <div style="font-size: 13px; opacity: 0.8;">Distance</div>
-                    <div>
-                        <span class="metric-value" id="distanceValue">0.00</span>
-                        <span style="font-size: 18px; opacity: 0.7;">m</span>
+                <div class="dual-metric">
+                    <div class="mini-metric">
+                        <div class="mini-label">Distance</div>
+                        <div class="mini-value" id="distanceValue">0.00</div>
+                        <div style="font-size: 12px; opacity: 0.6;">meters</div>
+                    </div>
+                    <div class="mini-metric">
+                        <div class="mini-label">Steps</div>
+                        <div class="mini-value" id="stepsValue" style="font-size: 24px;">0</div>
+                        <div style="font-size: 12px; opacity: 0.6;">pulses</div>
                     </div>
                 </div>
-                <div style="margin-top: 20px;">
-                    <div style="font-size: 13px; opacity: 0.8;">Steps</div>
-                    <div class="metric-value" id="stepsValue" style="font-size: 28px;">0</div>
-                </div>
                 
-                <!-- Node Counter -->
+                <!-- Rotation Angle Display -->
+                <div class="angle-display">
+                    <div style="font-size: 13px; opacity: 0.9;">🔄 ROTATION ANGLE</div>
+                    <div class="angle-value" id="angleValue">0°</div>
+                    <div style="font-size: 12px; opacity: 0.7;" id="angleTarget">Target: -</div>
+                </div>
+
+                <!-- Compass -->
+                <div class="compass">
+                    <div class="compass-label compass-n">N</div>
+                    <div class="compass-label compass-e">E</div>
+                    <div class="compass-label compass-s">S</div>
+                    <div class="compass-label compass-w">W</div>
+                    <div class="compass-needle" id="compassNeedle"></div>
+                    <div class="compass-center"></div>
+                </div>
+            </div>
+
+            <!-- Node Counter -->
+            <div class="glass-card">
+                <div class="card-header">
+                    <div class="card-icon">🔵</div>
+                    <div style="font-size: 20px; font-weight: 700;">Node Detection</div>
+                </div>
                 <div class="node-counter">
-                    <div style="font-size: 13px; opacity: 0.9;">🔵 NODES DETECTED</div>
+                    <div style="font-size: 13px; opacity: 0.9;">NODES DETECTED</div>
                     <div class="node-display" id="nodeCounter">0</div>
                     <div style="font-size: 12px; opacity: 0.7;" id="nodeTarget">Target: -</div>
                 </div>
@@ -361,9 +479,12 @@
                     <button class="control-btn" onclick="sendCommand('B')" disabled>▼<br>BACK</button>
                     <div></div>
                 </div>
+                <div style="margin-top: 20px; text-align: center; font-size: 12px; opacity: 0.7;">
+                    Use arrow keys: ↑↓←→ or click buttons
+                </div>
             </div>
 
-            <!-- Room Navigation (Node-Based) -->
+            <!-- Room Navigation -->
             <div class="glass-card">
                 <div class="card-header">
                     <div class="card-icon">🗺️</div>
@@ -383,56 +504,47 @@
                     </div>
                     <span style="font-size: 24px;">→</span>
                 </button>
-                <button class="room-btn" onclick="sendCommand('RETURN')" disabled>
+                <button class="room-btn" onclick="sendCommand('RETURN1')" disabled>
                     <div>
-                        <div style="font-weight: 700; font-size: 16px;">↩️ Return to Start</div>
-                        <div style="font-size: 13px; opacity: 0.7;">Automatic reverse path</div>
+                        <div style="font-weight: 700; font-size: 16px;">↩️ Return from Room 1</div>
+                        <div style="font-size: 13px; opacity: 0.7;">Reverse path back to start</div>
+                    </div>
+                    <span style="font-size: 24px;">←</span>
+                </button>
+                <button class="room-btn" onclick="sendCommand('RETURN2')" disabled>
+                    <div>
+                        <div style="font-weight: 700; font-size: 16px;">↩️ Return from Room 2</div>
+                        <div style="font-size: 13px; opacity: 0.7;">Reverse path back to start</div>
                     </div>
                     <span style="font-size: 24px;">←</span>
                 </button>
             </div>
 
-            <!-- Visual Map with Black Tape -->
+            <!-- Visual Map -->
             <div class="glass-card">
                 <div class="card-header">
                     <div class="card-icon">🗺️</div>
                     <div style="font-size: 20px; font-weight: 700;">Live Map</div>
                 </div>
                 <div class="visual-map">
-                    <!-- Start Point -->
                     <div style="position: absolute; bottom: 20px; left: 70px; font-weight: 700; color: #333;">START</div>
-                    
-                    <!-- Main vertical black tape line -->
                     <div class="tape-line tape-vertical"></div>
-                    
-                    <!-- Node 1 on vertical line -->
                     <div class="node-marker" id="mapNode1" style="bottom: 180px; left: 93px;">1</div>
-                    
-                    <!-- Branch to Room 1 (right turn) -->
                     <div class="tape-line" style="width: 150px; height: 15px; top: 48%; left: 115px;"></div>
                     <div class="room-destination" style="top: 45%; right: 80px;">Room 1</div>
-                    
-                    <!-- Branch to Room 2 (left turn from node) -->
                     <div class="tape-line" style="width: 120px; height: 15px; top: 35%; right: 320px;"></div>
                     <div class="room-destination" style="top: 32%; left: 30px;">Room 2</div>
-                    
-                    <!-- Wheelchair icon -->
                     <div class="wheelchair-icon" id="wheelchairIcon" style="bottom: 30px; left: 78px;">🦽</div>
                     
-                    <!-- Legend -->
                     <div style="position: absolute; bottom: 20px; right: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; font-size: 12px; color: #333;">
                         <div style="font-weight: 700; margin-bottom: 8px;">Legend:</div>
                         <div style="display: flex; align-items: center; gap: 8px; margin: 5px 0;">
                             <div style="width: 20px; height: 3px; background: #1a1a1a;"></div>
-                            <span>Black Tape Line</span>
+                            <span>Black Tape</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px; margin: 5px 0;">
                             <div style="width: 16px; height: 16px; background: var(--node); border-radius: 50%;"></div>
-                            <span>Node Marker</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px; margin: 5px 0;">
-                            <div style="width: 16px; height: 16px; background: var(--success); border-radius: 4px;"></div>
-                            <span>Destination</span>
+                            <span>Node</span>
                         </div>
                     </div>
                 </div>
@@ -466,9 +578,18 @@
             pid: 'sachin/esp32/nav/pid'
         };
 
+        // Constants from Arduino code
+        const STEPS_PER_90_DEGREES = 32800;
+        const STEPS_PER_METER = 64000;
+
         let client;
         let nodeCount = 0;
         let nodeTarget = 0;
+        let currentAngle = 0;
+        let targetAngle = 0;
+        let currentHeading = 0; // For compass (0 = North)
+        let isRotating = false;
+        let currentSteps = 0;
 
         function connectMQTT() {
             addLog('Connecting to MQTT broker...', 'info');
@@ -488,21 +609,12 @@
             client.on('message', (topic, message) => {
                 const msg = message.toString();
                 
-                console.log('📨 MQTT MESSAGE RECEIVED:');
-                console.log('   Topic:', topic);
-                console.log('   Message:', msg);
-                
                 if (topic === TOPICS.status) {
-                    console.log('➡️ Routing to STATUS handler');
                     handleStatusMessage(msg);
                 } else if (topic === TOPICS.position) {
-                    console.log('➡️ Routing to POSITION handler');
                     handlePositionMessage(msg);
                 } else if (topic === TOPICS.pid) {
-                    console.log('➡️ Routing to PID handler');
                     handlePidMessage(msg);
-                } else {
-                    console.log('⚠️ Unknown topic!');
                 }
             });
 
@@ -523,7 +635,6 @@
                     nodeCount = parseInt(match[1]);
                     document.getElementById('nodeCounter').textContent = nodeCount;
                     
-                    // Highlight node on map
                     const nodeEl = document.getElementById('mapNode' + nodeCount);
                     if (nodeEl) {
                         nodeEl.style.background = 'var(--success)';
@@ -532,13 +643,50 @@
                 }
             }
             
-            // Node target
-            if (msg.includes('/')) {
-                const match = msg.match(/(\d+) \/ (\d+)/);
-                if (match) {
-                    nodeTarget = parseInt(match[2]);
-                    document.getElementById('nodeTarget').textContent = 'Target: ' + nodeTarget;
+            // Detect rotation commands
+            if (msg.includes('left 90') || msg.includes('Left 90')) {
+                isRotating = true;
+                targetAngle = -90;
+                document.getElementById('angleTarget').textContent = 'Target: -90°';
+                document.getElementById('motionType').textContent = '⬅️ Left Turn';
+                logType = 'angle';
+            } else if (msg.includes('right 90') || msg.includes('Right 90')) {
+                isRotating = true;
+                targetAngle = 90;
+                document.getElementById('angleTarget').textContent = 'Target: 90°';
+                document.getElementById('motionType').textContent = '➡️ Right Turn';
+                logType = 'angle';
+            } else if (msg.includes('U-Turn') || msg.includes('U-turn')) {
+                isRotating = true;
+                targetAngle = 180;
+                document.getElementById('angleTarget').textContent = 'Target: 180°';
+                document.getElementById('motionType').textContent = '🔄 U-Turn';
+                logType = 'angle';
+            } else if (msg.includes('forward') || msg.includes('Forward')) {
+                isRotating = false;
+                currentAngle = 0;
+                document.getElementById('angleValue').textContent = '0°';
+                document.getElementById('angleTarget').textContent = 'Target: -';
+                document.getElementById('motionType').textContent = '▲ Forward';
+            } else if (msg.includes('backward') || msg.includes('Backward')) {
+                isRotating = false;
+                currentAngle = 0;
+                document.getElementById('angleValue').textContent = '0°';
+                document.getElementById('angleTarget').textContent = 'Target: -';
+                document.getElementById('motionType').textContent = '▼ Backward';
+            }
+            
+            // Motion complete
+            if (msg.includes('complete') || msg.includes('finished')) {
+                if (isRotating) {
+                    currentHeading = (currentHeading + targetAngle) % 360;
+                    if (currentHeading < 0) currentHeading += 360;
+                    updateCompass();
+                    addLog('🔄 Rotation complete: ' + targetAngle + '° (Heading: ' + currentHeading + '°)', 'angle');
                 }
+                isRotating = false;
+                currentAngle = 0;
+                document.getElementById('motionType').textContent = '-';
             }
             
             if (msg.includes('EMERGENCY')) logType = 'error';
@@ -547,7 +695,7 @@
             addLog(msg, logType);
             
             // Update system state
-            if (msg.includes('Moving') || msg.includes('forward') || msg.includes('backward')) {
+            if (msg.includes('Moving') || msg.includes('forward') || msg.includes('backward') || msg.includes('Rotating')) {
                 updateSystemState('MOVING');
             } else if (msg.includes('EMERGENCY')) {
                 updateSystemState('EMERGENCY');
@@ -557,166 +705,13 @@
         }
 
         function handlePositionMessage(msg) {
-            console.log('🔵 RAW POSITION MESSAGE:', msg);
-            console.log('🔵 Message type:', typeof msg);
-            console.log('🔵 Message length:', msg.length);
-            
             try {
-                // Try parsing as JSON
                 const data = JSON.parse(msg);
-                
-                console.log('✅ JSON PARSED SUCCESS:', data);
-                console.log('   - steps:', data.steps);
-                console.log('   - distance:', data.distance);
                 
                 if (data.steps !== undefined) {
-                    console.log('🟢 Updating steps to:', data.steps);
+                    currentSteps = data.steps;
                     document.getElementById('stepsValue').textContent = data.steps.toLocaleString();
-                    document.getElementById('stepsValue').style.color = '#10b981'; // Flash green
-                    setTimeout(() => {
-                        document.getElementById('stepsValue').style.color = '';
-                    }, 500);
-                }
-                if (data.distance !== undefined) {
-                    console.log('🟢 Updating distance to:', data.distance);
-                    document.getElementById('distanceValue').textContent = data.distance.toFixed(2);
                     
-                    // Move wheelchair on map
-                    const icon = document.getElementById('wheelchairIcon');
-                    const moveY = Math.min(data.distance * 60, 280);
-                    icon.style.bottom = (30 + moveY) + 'px';
-                }
-                
-                // Log progress
-                if (data.steps) {
-                    addLog('📍 Progress: ' + data.steps + ' steps, ' + data.distance.toFixed(2) + 'm', 'success');
-                }
-            } catch (e) {
-                // Fallback for non-JSON messages
-                console.error('❌ JSON PARSE FAILED:', e);
-                console.error('❌ Raw message was:', msg);
-                addLog('📍 Non-JSON: ' + msg, 'warning');
-            }
-        }
-
-        function handlePidMessage(msg) {
-            console.log('🟣 RAW PID MESSAGE:', msg);
-            
-            try {
-                // Try parsing as JSON
-                const data = JSON.parse(msg);
-                
-                console.log('✅ PID JSON PARSED:', data);
-                
-                if (data.error !== undefined) {
-                    console.log('🟢 Updating PID error to:', data.error);
-                    document.getElementById('pidError').textContent = data.error;
-                    document.getElementById('pidError').style.color = '#10b981';
-                    setTimeout(() => {
-                        document.getElementById('pidError').style.color = 'var(--success)';
-                    }, 300);
-                }
-                if (data.output !== undefined) {
-                    console.log('🟢 Updating PID output to:', data.output);
-                    document.getElementById('pidOutput').textContent = data.output.toFixed(1);
-                }
-                if (data.active !== undefined) {
-                    document.getElementById('pidActive').textContent = data.active;
-                }
-            } catch (e) {
-                console.error('❌ PID JSON PARSE FAILED:', e);
-                console.error('❌ Raw message was:', msg);
-                // Fallback: Try regex parsing for old format
-                const errMatch = msg.match(/error[":=\s]+(-?\d+)/i);
-                const outMatch = msg.match(/output[":=\s]+(-?\d+\.?\d*)/i);
-                const actMatch = msg.match(/active[":=\s]+(\d+)/i);
-                
-                if (errMatch) document.getElementById('pidError').textContent = errMatch[1];
-                if (outMatch) document.getElementById('pidOutput').textContent = parseFloat(outMatch[1]).toFixed(1);
-                if (actMatch) document.getElementById('pidActive').textContent = actMatch[1];
-            }
-        }
-
-        function updateConnectionStatus(connected) {
-            const el = document.getElementById('connectionStatus');
-            if (connected) {
-                el.innerHTML = '<span>●</span><span>Connected</span>';
-                el.className = 'status-badge status-online';
-                enableAllButtons(true);
-            } else {
-                el.innerHTML = '<span>●</span><span>Disconnected</span>';
-                el.className = 'status-badge status-offline';
-                enableAllButtons(false);
-            }
-        }
-
-        function updateSystemState(state) {
-            const el = document.getElementById('systemState');
-            el.textContent = state;
-            el.className = 'status-badge ' + 
-                (state === 'MOVING' ? 'status-moving' : 
-                 state === 'EMERGENCY' ? 'status-offline' : 'status-online');
-        }
-
-        function addLog(message, type = 'info') {
-            const container = document.getElementById('logContainer');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + type;
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
-            
-            while (container.children.length > 100) {
-                container.removeChild(container.firstChild);
-            }
-        }
-
-        function enableAllButtons(enabled) {
-            document.querySelectorAll('button').forEach(btn => btn.disabled = !enabled);
-        }
-
-        function sendCommand(cmd) {
-            if (!client || !client.connected) {
-                addLog('❌ Cannot send - not connected', 'error');
-                return;
-            }
-            
-            // Reset node count on new navigation
-            if (cmd.startsWith('ROOM')) {
-                nodeCount = 0;
-                document.getElementById('nodeCounter').textContent = '0';
-                document.querySelectorAll('.node-marker').forEach(n => {
-                    n.style.background = 'var(--node)';
-                    n.style.transform = 'scale(1)';
-                });
-            }
-            
-            client.publish(TOPICS.control, cmd);
-            addLog('✓ Command sent: ' + cmd, 'success');
-        }
-
-        window.addEventListener('load', () => {
-            addLog('🚀 Dashboard initialized', 'success');
-            connectMQTT();
-        });
-
-        // Keyboard controls
-        document.addEventListener('keydown', (e) => {
-            if (!client || !client.connected) return;
-            
-            const keyMap = {
-                'ArrowUp': 'F',
-                'ArrowDown': 'B',
-                'ArrowLeft': 'L',
-                'ArrowRight': 'R',
-                ' ': 'STOP'
-            };
-            
-            if (keyMap[e.key]) {
-                e.preventDefault();
-                sendCommand(keyMap[e.key]);
-            }
-        });
-    </script>
-</body>
-</html>
+                    // Calculate angle if rotating
+                    if (isRotating) {
+                        const rotationProgress = (data.steps /
