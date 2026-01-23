@@ -714,4 +714,141 @@
                     
                     // Calculate angle if rotating
                     if (isRotating) {
-                        const rotationProgress = (data.steps /
+                        const rotationProgress = (data.steps / Math.abs(targetAngle === 180 ? STEPS_PER_90_DEGREES * 2 : STEPS_PER_90_DEGREES));
+                        currentAngle = Math.round(targetAngle * Math.min(rotationProgress, 1));
+                        document.getElementById('angleValue').textContent = currentAngle + '°';
+                        
+                        // Flash angle display
+                        const angleEl = document.getElementById('angleValue');
+                        angleEl.style.transform = 'scale(1.1)';
+                        setTimeout(() => angleEl.style.transform = 'scale(1)', 200);
+                    }
+                }
+                
+                if (data.distance !== undefined) {
+                    document.getElementById('distanceValue').textContent = data.distance.toFixed(2);
+                    
+                    // Move wheelchair on map
+                    const icon = document.getElementById('wheelchairIcon');
+                    const moveY = Math.min(data.distance * 60, 280);
+                    icon.style.bottom = (30 + moveY) + 'px';
+                }
+            } catch (e) {
+                console.error('❌ JSON PARSE FAILED:', e);
+            }
+        }
+
+        function handlePidMessage(msg) {
+            try {
+                const data = JSON.parse(msg);
+                
+                if (data.error !== undefined) {
+                    document.getElementById('pidError').textContent = data.error;
+                }
+                if (data.output !== undefined) {
+                    document.getElementById('pidOutput').textContent = data.output.toFixed(1);
+                }
+                if (data.active !== undefined) {
+                    document.getElementById('pidActive').textContent = data.active;
+                }
+            } catch (e) {
+                console.error('❌ PID JSON PARSE FAILED:', e);
+            }
+        }
+
+        function updateCompass() {
+            const needle = document.getElementById('compassNeedle');
+            needle.style.transform = `rotate(${currentHeading}deg)`;
+        }
+
+        function updateConnectionStatus(connected) {
+            const el = document.getElementById('connectionStatus');
+            if (connected) {
+                el.innerHTML = '<span>●</span><span>Connected</span>';
+                el.className = 'status-badge status-online';
+                enableAllButtons(true);
+            } else {
+                el.innerHTML = '<span>●</span><span>Disconnected</span>';
+                el.className = 'status-badge status-offline';
+                enableAllButtons(false);
+            }
+        }
+
+        function updateSystemState(state) {
+            const el = document.getElementById('systemState');
+            el.textContent = state;
+            el.className = 'status-badge ' + 
+                (state === 'MOVING' ? 'status-moving' : 
+                 state === 'EMERGENCY' ? 'status-offline' : 'status-online');
+        }
+
+        function addLog(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            
+            while (container.children.length > 100) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        function enableAllButtons(enabled) {
+            document.querySelectorAll('button').forEach(btn => btn.disabled = !enabled);
+        }
+
+        function sendCommand(cmd) {
+            if (!client || !client.connected) {
+                addLog('❌ Cannot send - not connected', 'error');
+                return;
+            }
+            
+            // Reset node count on new navigation
+            if (cmd.startsWith('ROOM')) {
+                nodeCount = 0;
+                document.getElementById('nodeCounter').textContent = '0';
+                document.querySelectorAll('.node-marker').forEach(n => {
+                    n.style.background = 'var(--node)';
+                    n.style.transform = 'scale(1)';
+                });
+            }
+            
+            // Reset angle on new command
+            if (cmd === 'F' || cmd === 'B') {
+                currentAngle = 0;
+                document.getElementById('angleValue').textContent = '0°';
+                document.getElementById('angleTarget').textContent = 'Target: -';
+            }
+            
+            client.publish(TOPICS.control, cmd);
+            addLog('✓ Command sent: ' + cmd, 'success');
+        }
+
+        window.addEventListener('load', () => {
+            addLog('🚀 Dashboard initialized', 'success');
+            addLog('📊 Configuration: ' + STEPS_PER_90_DEGREES + ' steps per 90°', 'info');
+            connectMQTT();
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (!client || !client.connected) return;
+            
+            const keyMap = {
+                'ArrowUp': 'F',
+                'ArrowDown': 'B',
+                'ArrowLeft': 'L',
+                'ArrowRight': 'R',
+                ' ': 'STOP'
+            };
+            
+            if (keyMap[e.key]) {
+                e.preventDefault();
+                sendCommand(keyMap[e.key]);
+            }
+        });
+    </script>
+</body>
+</html>
