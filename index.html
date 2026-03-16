@@ -1,855 +1,515 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wheelchair Navigation Pro - Enhanced</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wheelchair Navigation</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
-        :root {
-            --primary: #3b82f6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --node: #8b5cf6;
-            --angle: #ec4899;
-        }
+    :root {
+      --bg:      #0f172a;
+      --surface: #1e293b;
+      --border:  #334155;
+      --text:    #f1f5f9;
+      --muted:   #94a3b8;
+      --blue:    #3b82f6;
+      --green:   #10b981;
+      --yellow:  #f59e0b;
+      --red:     #ef4444;
+      --purple:  #8b5cf6;
+      --pink:    #ec4899;
+    }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            color: white;
-        }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
 
-        .dashboard {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
+    h1 { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
 
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
 
-        .header h1 {
-            font-size: 48px;
-            font-weight: 800;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
 
-        .subtitle {
-            font-size: 18px;
-            opacity: 0.9;
-        }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 16px;
+    }
 
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 25px;
-            margin-bottom: 25px;
-        }
+    /* ── Status badge ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 13px; font-weight: 600;
+    }
+    .badge-dot { width:8px; height:8px; border-radius:50%; }
+    .badge-green  { background: rgba(16,185,129,.15); color: var(--green); }
+    .badge-green .badge-dot  { background: var(--green); }
+    .badge-red    { background: rgba(239,68,68,.15);  color: var(--red); }
+    .badge-red .badge-dot    { background: var(--red); }
+    .badge-blue   { background: rgba(59,130,246,.15); color: var(--blue); }
+    .badge-blue .badge-dot   { background: var(--blue); }
+    .badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+    .badge-yellow .badge-dot { background: var(--yellow); }
 
-        .glass-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: transform 0.3s;
-        }
+    /* ── Big metric ── */
+    .metric { text-align:center; padding: 16px 0; }
+    .metric-value { font-size: 52px; font-weight: 800; line-height: 1; }
+    .metric-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
-        .glass-card:hover {
-            transform: translateY(-5px);
-        }
+    /* ── Sensor bar ── */
+    .sensor-row { display:flex; gap:6px; justify-content:center; margin-top: 8px; }
+    .sensor-cell {
+      width: 32px; height: 32px; border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      transition: background .15s;
+      display:flex; align-items:center; justify-content:center;
+      font-size:10px; color: var(--muted);
+    }
+    .sensor-cell.on { background: var(--purple); border-color: var(--purple); color:#fff; }
 
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
+    /* ── PID bar ── */
+    .pid-track {
+      height: 8px; border-radius: 4px;
+      background: var(--border); margin-top: 4px; overflow: hidden;
+    }
+    .pid-fill {
+      height: 100%; border-radius: 4px;
+      background: var(--blue); width:50%;
+      transition: width .15s, background .15s;
+    }
 
-        .card-icon {
-            width: 48px;
-            height: 48px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
+    /* ── Buttons ── */
+    button {
+      border: none; cursor: pointer; font-family: inherit;
+      font-weight: 700; border-radius: 12px;
+      transition: all .2s;
+    }
+    button:disabled { opacity: .35; cursor: not-allowed; }
 
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            border-radius: 50px;
-            font-size: 14px;
-            font-weight: 600;
-        }
+    .btn-room {
+      width: 100%; padding: 18px 20px;
+      background: var(--border);
+      color: var(--text);
+      font-size: 15px;
+      display: flex; align-items:center; justify-content:space-between;
+      margin-bottom: 12px;
+    }
+    .btn-room:hover:not(:disabled) { background: #475569; transform: translateX(4px); }
+    .btn-room.room1:not(:disabled)  { background: rgba(59,130,246,.2);  border: 1px solid var(--blue); }
+    .btn-room.room2:not(:disabled)  { background: rgba(139,92,246,.2);  border: 1px solid var(--purple); }
+    .btn-room.return:not(:disabled) { background: rgba(16,185,129,.15); border: 1px solid var(--green); }
 
-        .status-online { background: rgba(16, 185, 129, 0.3); }
-        .status-offline { background: rgba(239, 68, 68, 0.3); }
-        .status-moving { background: rgba(59, 130, 246, 0.3); }
+    .btn-stop {
+      width: 100%; padding: 18px;
+      background: rgba(239,68,68,.2);
+      border: 1px solid var(--red);
+      color: var(--red);
+      font-size: 18px;
+      margin-top: 8px;
+    }
+    .btn-stop:hover:not(:disabled) { background: rgba(239,68,68,.35); }
 
-        .metric-value {
-            font-size: 42px;
-            font-weight: 800;
-        }
+    /* ── Map ── */
+    .map-wrap {
+      background: #f8fafc;
+      border-radius: 12px;
+      position: relative;
+      height: 380px;
+      overflow: hidden;
+    }
+    /* tape */
+    .tape { position:absolute; background:#1e293b; border-radius:4px; }
+    .tape-v  { width:14px; bottom:30px; left:50%; transform:translateX(-50%); height:310px; }
+    .tape-h1 { height:14px; top:195px; right:50%; margin-right:-7px; width:160px; } /* room1: left branch  */
+    .tape-h2 { height:14px; top:120px; left:50%;  margin-left:-7px;  width:160px; } /* room2: right branch */
 
-        .angle-display {
-            background: rgba(236, 72, 153, 0.2);
-            border: 2px solid var(--angle);
-            border-radius: 16px;
-            padding: 20px;
-            margin-top: 20px;
-            text-align: center;
-        }
+    .map-node {
+      position:absolute; width:28px; height:28px; border-radius:50%;
+      border: 3px solid #fff;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:13px; color:#fff;
+      background: var(--purple);
+      box-shadow: 0 0 14px rgba(139,92,246,.5);
+      transition: background .3s, transform .3s;
+      z-index:5;
+    }
+    .map-node.passed { background: var(--green); transform: scale(1.2); }
 
-        .angle-value {
-            font-size: 48px;
-            font-weight: 800;
-            color: var(--angle);
-            margin: 10px 0;
-        }
+    .map-label {
+      position:absolute; padding: 6px 14px;
+      background: var(--green); color:#fff;
+      border-radius:8px; font-weight:700; font-size:12px;
+      z-index:3;
+    }
 
-        .node-counter {
-            background: rgba(139, 92, 246, 0.2);
-            border: 2px solid var(--node);
-            border-radius: 16px;
-            padding: 20px;
-            margin-top: 20px;
-            text-align: center;
-        }
+    .wc-icon {
+      position:absolute; width:44px; height:44px; border-radius:50%;
+      background: var(--blue); border: 3px solid #fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:24px;
+      box-shadow: 0 0 20px rgba(59,130,246,.6);
+      transition: bottom .4s ease, left .4s ease;
+      z-index:10;
+    }
 
-        .node-display {
-            font-size: 48px;
-            font-weight: 800;
-            color: var(--node);
-            margin: 10px 0;
-        }
-
-        .compass {
-            width: 150px;
-            height: 150px;
-            margin: 20px auto;
-            position: relative;
-            background: rgba(255,255,255,0.05);
-            border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.2);
-        }
-
-        .compass-needle {
-            position: absolute;
-            width: 4px;
-            height: 60px;
-            background: linear-gradient(to bottom, #ef4444 0%, #ef4444 50%, #3b82f6 50%, #3b82f6 100%);
-            left: 50%;
-            top: 20%;
-            transform-origin: bottom center;
-            transition: transform 0.5s ease;
-            border-radius: 2px;
-        }
-
-        .compass-center {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px rgba(255,255,255,0.5);
-        }
-
-        .compass-label {
-            position: absolute;
-            font-weight: 700;
-            font-size: 14px;
-        }
-
-        .compass-n { top: 10px; left: 50%; transform: translateX(-50%); color: #ef4444; }
-        .compass-e { right: 10px; top: 50%; transform: translateY(-50%); }
-        .compass-s { bottom: 10px; left: 50%; transform: translateX(-50%); }
-        .compass-w { left: 10px; top: 50%; transform: translateY(-50%); }
-
-        .control-btn {
-            padding: 20px;
-            border: none;
-            border-radius: 16px;
-            color: white;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            background: rgba(255,255,255,0.1);
-            transition: all 0.3s;
-        }
-
-        .control-btn:hover:not(:disabled) {
-            transform: translateY(-3px);
-            background: rgba(255,255,255,0.2);
-        }
-
-        .control-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .room-btn {
-            padding: 20px;
-            margin: 12px 0;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 16px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s;
-        }
-
-        .room-btn:hover:not(:disabled) {
-            transform: translateX(5px);
-            background: rgba(255,255,255,0.15);
-        }
-
-        .visual-map {
-            background: rgba(240, 240, 240, 0.95);
-            border-radius: 16px;
-            padding: 30px;
-            position: relative;
-            height: 500px;
-            overflow: hidden;
-        }
-
-        .tape-line {
-            position: absolute;
-            background: #1a1a1a;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-
-        .tape-vertical {
-            width: 15px;
-            left: 100px;
-            bottom: 30px;
-            height: 300px;
-        }
-
-        .tape-horizontal {
-            height: 15px;
-            top: 50%;
-            left: 100px;
-            width: 200px;
-        }
-
-        .node-marker {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: var(--node);
-            border-radius: 50%;
-            border: 3px solid white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 800;
-            font-size: 18px;
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
-            z-index: 5;
-            animation: node-pulse 2s infinite;
-        }
-
-        @keyframes node-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
-        .wheelchair-icon {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: var(--primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
-            border: 3px solid white;
-            z-index: 10;
-            transition: all 0.5s ease;
-        }
-
-        .room-destination {
-            position: absolute;
-            padding: 10px 20px;
-            background: var(--success);
-            color: white;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 14px;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-            z-index: 3;
-        }
-
-        .log-container {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 16px;
-            padding: 20px;
-            max-height: 250px;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-        }
-
-        .log-entry {
-            color: rgba(255, 255, 255, 0.8);
-            margin: 8px 0;
-            padding: 10px;
-            border-left: 3px solid var(--primary);
-            padding-left: 15px;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 0 8px 8px 0;
-        }
-
-        .log-entry.error { border-left-color: var(--danger); }
-        .log-entry.success { border-left-color: var(--success); }
-        .log-entry.warning { border-left-color: var(--warning); }
-        .log-entry.node { border-left-color: var(--node); font-weight: 700; }
-        .log-entry.angle { border-left-color: var(--angle); font-weight: 700; }
-
-        .dual-metric {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .mini-metric {
-            background: rgba(255,255,255,0.05);
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .mini-value {
-            font-size: 28px;
-            font-weight: 800;
-            margin: 5px 0;
-        }
-
-        .mini-label {
-            font-size: 11px;
-            opacity: 0.7;
-            text-transform: uppercase;
-        }
-    </style>
+    /* ── Log ── */
+    .log {
+      background: #0f172a; border-radius: 12px;
+      padding: 16px; height: 220px;
+      overflow-y: auto; font-family: monospace; font-size: 12px;
+    }
+    .log-line {
+      padding: 5px 10px; margin: 3px 0;
+      border-left: 3px solid var(--blue);
+      color: #cbd5e1; border-radius: 0 6px 6px 0;
+    }
+    .log-line.ok     { border-color: var(--green); }
+    .log-line.warn   { border-color: var(--yellow); }
+    .log-line.err    { border-color: var(--red);   }
+    .log-line.node   { border-color: var(--purple); color:#c4b5fd; font-weight:700; }
+    .log-line.state  { border-color: var(--pink);   color:#f9a8d4; }
+  </style>
 </head>
 <body>
-    <div class="dashboard">
-        <div class="header">
-            <h1>🦽 Wheelchair Navigation Pro</h1>
-            <p class="subtitle">Node-Based Navigation with Real-Time Angle Tracking</p>
-        </div>
 
-        <div class="grid">
-            <!-- Connection & Status -->
-            <div class="glass-card">
-                <div class="card-header">
-                    <div class="card-icon">📡</div>
-                    <div style="font-size: 20px; font-weight: 700;">Connection</div>
-                </div>
-                <div class="status-badge status-offline" id="connectionStatus">
-                    <span>●</span>
-                    <span>Connecting...</span>
-                </div>
-                <div style="margin-top: 20px;">
-                    <div style="font-size: 13px; opacity: 0.8;">System State</div>
-                    <div id="systemState" class="status-badge status-offline">IDLE</div>
-                </div>
-                <div style="margin-top: 20px;">
-                    <div style="font-size: 13px; opacity: 0.8;">Current Motion</div>
-                    <div id="motionType" style="font-size: 16px; font-weight: 600; margin-top: 5px;">-</div>
-                </div>
-            </div>
+<h1>🦽 Wheelchair Navigation</h1>
+<p class="subtitle">Node-Based Navigation — PID Line Following</p>
 
-            <!-- Position & Angle -->
-            <div class="glass-card">
-                <div class="card-header">
-                    <div class="card-icon">📍</div>
-                    <div style="font-size: 20px; font-weight: 700;">Position & Orientation</div>
-                </div>
-                <div class="dual-metric">
-                    <div class="mini-metric">
-                        <div class="mini-label">Distance</div>
-                        <div class="mini-value" id="distanceValue">0.00</div>
-                        <div style="font-size: 12px; opacity: 0.6;">meters</div>
-                    </div>
-                    <div class="mini-metric">
-                        <div class="mini-label">Steps</div>
-                        <div class="mini-value" id="stepsValue" style="font-size: 24px;">0</div>
-                        <div style="font-size: 12px; opacity: 0.6;">pulses</div>
-                    </div>
-                </div>
-                
-                <!-- Rotation Angle Display -->
-                <div class="angle-display">
-                    <div style="font-size: 13px; opacity: 0.9;">🔄 ROTATION ANGLE</div>
-                    <div class="angle-value" id="angleValue">0°</div>
-                    <div style="font-size: 12px; opacity: 0.7;" id="angleTarget">Target: -</div>
-                </div>
+<div class="grid">
 
-                <!-- Compass -->
-                <div class="compass">
-                    <div class="compass-label compass-n">N</div>
-                    <div class="compass-label compass-e">E</div>
-                    <div class="compass-label compass-s">S</div>
-                    <div class="compass-label compass-w">W</div>
-                    <div class="compass-needle" id="compassNeedle"></div>
-                    <div class="compass-center"></div>
-                </div>
-            </div>
-
-            <!-- Node Counter -->
-            <div class="glass-card">
-                <div class="card-header">
-                    <div class="card-icon">🔵</div>
-                    <div style="font-size: 20px; font-weight: 700;">Node Detection</div>
-                </div>
-                <div class="node-counter">
-                    <div style="font-size: 13px; opacity: 0.9;">NODES DETECTED</div>
-                    <div class="node-display" id="nodeCounter">0</div>
-                    <div style="font-size: 12px; opacity: 0.7;" id="nodeTarget">Target: -</div>
-                </div>
-            </div>
-
-            <!-- PID Status -->
-            <div class="glass-card">
-                <div class="card-header">
-                    <div class="card-icon">🎯</div>
-                    <div style="font-size: 20px; font-weight: 700;">PID Control</div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.7;">ERROR</div>
-                        <div style="font-size: 32px; font-weight: 800; color: var(--success);" id="pidError">0</div>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; text-align: center;">
-                        <div style="font-size: 12px; opacity: 0.7;">OUTPUT</div>
-                        <div style="font-size: 32px; font-weight: 800; color: var(--primary);" id="pidOutput">0</div>
-                    </div>
-                </div>
-                <div style="margin-top: 15px; text-align: center;">
-                    <div style="font-size: 12px; opacity: 0.7;">ACTIVE SENSORS</div>
-                    <div style="font-size: 24px; font-weight: 700;" id="pidActive">0</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="grid">
-            <!-- Manual Controls -->
-            <div class="glass-card">
-                <div class="card-header">
-                    <div class="card-icon">🎮</div>
-                    <div style="font-size: 20px; font-weight: 700;">Manual Control</div>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-                    <div></div>
-                    <button class="control-btn" onclick="sendCommand('F')" disabled>▲<br>FORWARD</button>
-                    <div></div>
-                    <button class="control-btn" onclick="sendCommand('L')" disabled>◄<br>LEFT 90°</button>
-                    <button class="control-btn" style="background: rgba(239, 68, 68, 0.3);" onclick="sendCommand('STOP')" disabled>🛑<br>STOP</button>
-                    <button class="control-btn" onclick="sendCommand('R')" disabled>►<br>RIGHT 90°</button>
-                    <div></div>
-                    <button class="control-btn" onclick="sendCommand('B')" disabled>▼<br>BACK</button>
-                    <div></div>
-                </div>
-                <div style="margin-top: 20px; text-align: center; font-size: 12px; opacity: 0.7;">
-                    Use arrow keys: ↑↓←→ or click buttons
-                </div>
-            </div>
-
-            <!-- Room Navigation -->
-            <div class="glass-card">
-                <div class="card-header">
-                    <div class="card-icon">🗺️</div>
-                    <div style="font-size: 20px; font-weight: 700;">Node Navigation</div>
-                </div>
-                <button class="room-btn" onclick="sendCommand('ROOM1')" disabled>
-                    <div>
-                        <div style="font-weight: 700; font-size: 16px;">🏠 Room 1</div>
-                        <div style="font-size: 13px; opacity: 0.7;">Node 1 → Right 90° → Continue</div>
-                    </div>
-                    <span style="font-size: 24px;">→</span>
-                </button>
-                <button class="room-btn" onclick="sendCommand('ROOM2')" disabled>
-                    <div>
-                        <div style="font-weight: 700; font-size: 16px;">🏠 Room 2</div>
-                        <div style="font-size: 13px; opacity: 0.7;">Node 1 → Left 90° → Continue</div>
-                    </div>
-                    <span style="font-size: 24px;">→</span>
-                </button>
-                <button class="room-btn" onclick="sendCommand('RETURN1')" disabled>
-                    <div>
-                        <div style="font-weight: 700; font-size: 16px;">↩️ Return from Room 1</div>
-                        <div style="font-size: 13px; opacity: 0.7;">Reverse path back to start</div>
-                    </div>
-                    <span style="font-size: 24px;">←</span>
-                </button>
-                <button class="room-btn" onclick="sendCommand('RETURN2')" disabled>
-                    <div>
-                        <div style="font-weight: 700; font-size: 16px;">↩️ Return from Room 2</div>
-                        <div style="font-size: 13px; opacity: 0.7;">Reverse path back to start</div>
-                    </div>
-                    <span style="font-size: 24px;">←</span>
-                </button>
-            </div>
-
-            <!-- Visual Map -->
-            <div class="glass-card">
-                <div class="card-header">
-                    <div class="card-icon">🗺️</div>
-                    <div style="font-size: 20px; font-weight: 700;">Live Map</div>
-                </div>
-                <div class="visual-map">
-                    <div style="position: absolute; bottom: 20px; left: 70px; font-weight: 700; color: #333;">START</div>
-                    <div class="tape-line tape-vertical"></div>
-                    <div class="node-marker" id="mapNode1" style="bottom: 180px; left: 93px;">1</div>
-                    <div class="tape-line" style="width: 150px; height: 15px; top: 48%; left: 115px;"></div>
-                    <div class="room-destination" style="top: 45%; right: 80px;">Room 1</div>
-                    <div class="tape-line" style="width: 120px; height: 15px; top: 35%; right: 320px;"></div>
-                    <div class="room-destination" style="top: 32%; left: 30px;">Room 2</div>
-                    <div class="wheelchair-icon" id="wheelchairIcon" style="bottom: 30px; left: 78px;">🦽</div>
-                    
-                    <div style="position: absolute; bottom: 20px; right: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; font-size: 12px; color: #333;">
-                        <div style="font-weight: 700; margin-bottom: 8px;">Legend:</div>
-                        <div style="display: flex; align-items: center; gap: 8px; margin: 5px 0;">
-                            <div style="width: 20px; height: 3px; background: #1a1a1a;"></div>
-                            <span>Black Tape</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px; margin: 5px 0;">
-                            <div style="width: 16px; height: 16px; background: var(--node); border-radius: 50%;"></div>
-                            <span>Node</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Activity Log -->
-        <div class="glass-card">
-            <div class="card-header">
-                <div class="card-icon">📋</div>
-                <div style="font-size: 20px; font-weight: 700;">Activity Log</div>
-            </div>
-            <div class="log-container" id="logContainer">
-                <div class="log-entry">System initializing...</div>
-            </div>
-        </div>
+  <!-- Connection & State -->
+  <div class="card">
+    <div class="card-title">Connection & State</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">MQTT Broker</div>
+        <span class="badge badge-red" id="connBadge"><span class="badge-dot"></span>Connecting…</span>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">System State</div>
+        <span class="badge badge-yellow" id="stateBadge"><span class="badge-dot"></span>IDLE</span>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Mission</div>
+        <span id="missionLabel" style="font-size:14px;font-weight:600;color:var(--muted)">None</span>
+      </div>
     </div>
+  </div>
 
-    <script>
-        const MQTT_CONFIG = {
-            host: 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt',
-            username: 'wheel',
-            password: 'Wheel123',
-            clientId: 'Dashboard_' + Math.random().toString(16).substr(2, 8)
-        };
+  <!-- Node Counter -->
+  <div class="card">
+    <div class="card-title">Node Detection</div>
+    <div class="metric">
+      <div class="metric-value" id="nodeVal" style="color:var(--purple)">0</div>
+      <div class="metric-label">NODES DETECTED</div>
+    </div>
+    <div style="margin-top:12px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">SENSOR ARRAY (8 channels)</div>
+      <div class="sensor-row" id="sensorRow">
+        <div class="sensor-cell">1</div><div class="sensor-cell">2</div>
+        <div class="sensor-cell">3</div><div class="sensor-cell">4</div>
+        <div class="sensor-cell">5</div><div class="sensor-cell">6</div>
+        <div class="sensor-cell">7</div><div class="sensor-cell">8</div>
+      </div>
+    </div>
+  </div>
 
-        const TOPICS = {
-            control: 'sachin/esp32/nav/control',
-            status: 'sachin/esp32/nav/status',
-            position: 'sachin/esp32/nav/position',
-            pid: 'sachin/esp32/nav/pid'
-        };
+  <!-- PID -->
+  <div class="card">
+    <div class="card-title">PID Control</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--muted)">ERROR</div>
+        <div style="font-size:32px;font-weight:800;color:var(--yellow)" id="pidErr">0</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--muted)">OUTPUT</div>
+        <div style="font-size:32px;font-weight:800;color:var(--blue)" id="pidOut">0.0</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">CORRECTION BAR</div>
+    <div class="pid-track"><div class="pid-fill" id="pidBar"></div></div>
+    <div style="margin-top:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--muted)">ACTIVE SENSORS</div>
+      <div style="font-size:24px;font-weight:700;" id="pidActive">0</div>
+    </div>
+  </div>
 
-        // Constants from Arduino code
-        const STEPS_PER_90_DEGREES = 32800;
-        const STEPS_PER_METER = 64000;
+</div>
 
-        let client;
-        let nodeCount = 0;
-        let nodeTarget = 0;
-        let currentAngle = 0;
-        let targetAngle = 0;
-        let currentHeading = 0; // For compass (0 = North)
-        let isRotating = false;
-        let currentSteps = 0;
+<div class="grid">
 
-        function connectMQTT() {
-            addLog('Connecting to MQTT broker...', 'info');
-            
-            client = mqtt.connect(MQTT_CONFIG.host, {
-                username: MQTT_CONFIG.username,
-                password: MQTT_CONFIG.password,
-                clientId: MQTT_CONFIG.clientId
-            });
+  <!-- Room navigation -->
+  <div class="card">
+    <div class="card-title">Room Navigation</div>
 
-            client.on('connect', () => {
-                addLog('✓ Connected to MQTT broker', 'success');
-                updateConnectionStatus(true);
-                client.subscribe([TOPICS.status, TOPICS.position, TOPICS.pid]);
-            });
+    <button class="btn-room room1" id="btnRoom1" disabled onclick="cmd('ROOM1')">
+      <div>
+        <div>🏠 Room 1</div>
+        <div style="font-size:12px;opacity:.7;font-weight:400;margin-top:2px;">Node 1 → Turn LEFT → follow → stop</div>
+      </div>
+      <span style="font-size:20px;">→</span>
+    </button>
 
-            client.on('message', (topic, message) => {
-                const msg = message.toString();
-                
-                if (topic === TOPICS.status) {
-                    handleStatusMessage(msg);
-                } else if (topic === TOPICS.position) {
-                    handlePositionMessage(msg);
-                } else if (topic === TOPICS.pid) {
-                    handlePidMessage(msg);
-                }
-            });
+    <button class="btn-room room2" id="btnRoom2" disabled onclick="cmd('ROOM2')">
+      <div>
+        <div>🏠 Room 2</div>
+        <div style="font-size:12px;opacity:.7;font-weight:400;margin-top:2px;">Node 2 → Turn RIGHT → follow → stop</div>
+      </div>
+      <span style="font-size:20px;">→</span>
+    </button>
 
-            client.on('error', (error) => {
-                addLog('❌ MQTT Error: ' + error, 'error');
-                updateConnectionStatus(false);
-            });
-        }
+    <button class="btn-stop" id="btnStop" disabled onclick="cmd('STOP')">
+      🛑 EMERGENCY STOP
+    </button>
 
-        function handleStatusMessage(msg) {
-            let logType = 'info';
-            
-            // Node detection
-            if (msg.includes('NODE DETECTED')) {
-                logType = 'node';
-                const match = msg.match(/Count: (\d+)/);
-                if (match) {
-                    nodeCount = parseInt(match[1]);
-                    document.getElementById('nodeCounter').textContent = nodeCount;
-                    
-                    const nodeEl = document.getElementById('mapNode' + nodeCount);
-                    if (nodeEl) {
-                        nodeEl.style.background = 'var(--success)';
-                        nodeEl.style.transform = 'scale(1.3)';
-                    }
-                }
-            }
-            
-            // Detect rotation commands
-            if (msg.includes('left 90') || msg.includes('Left 90')) {
-                isRotating = true;
-                targetAngle = -90;
-                document.getElementById('angleTarget').textContent = 'Target: -90°';
-                document.getElementById('motionType').textContent = '⬅️ Left Turn';
-                logType = 'angle';
-            } else if (msg.includes('right 90') || msg.includes('Right 90')) {
-                isRotating = true;
-                targetAngle = 90;
-                document.getElementById('angleTarget').textContent = 'Target: 90°';
-                document.getElementById('motionType').textContent = '➡️ Right Turn';
-                logType = 'angle';
-            } else if (msg.includes('U-Turn') || msg.includes('U-turn')) {
-                isRotating = true;
-                targetAngle = 180;
-                document.getElementById('angleTarget').textContent = 'Target: 180°';
-                document.getElementById('motionType').textContent = '🔄 U-Turn';
-                logType = 'angle';
-            } else if (msg.includes('forward') || msg.includes('Forward')) {
-                isRotating = false;
-                currentAngle = 0;
-                document.getElementById('angleValue').textContent = '0°';
-                document.getElementById('angleTarget').textContent = 'Target: -';
-                document.getElementById('motionType').textContent = '▲ Forward';
-            } else if (msg.includes('backward') || msg.includes('Backward')) {
-                isRotating = false;
-                currentAngle = 0;
-                document.getElementById('angleValue').textContent = '0°';
-                document.getElementById('angleTarget').textContent = 'Target: -';
-                document.getElementById('motionType').textContent = '▼ Backward';
-            }
-            
-            // Motion complete
-            if (msg.includes('complete') || msg.includes('finished')) {
-                if (isRotating) {
-                    currentHeading = (currentHeading + targetAngle) % 360;
-                    if (currentHeading < 0) currentHeading += 360;
-                    updateCompass();
-                    addLog('🔄 Rotation complete: ' + targetAngle + '° (Heading: ' + currentHeading + '°)', 'angle');
-                }
-                isRotating = false;
-                currentAngle = 0;
-                document.getElementById('motionType').textContent = '-';
-            }
-            
-            if (msg.includes('EMERGENCY')) logType = 'error';
-            else if (msg.includes('✓')) logType = 'success';
-            
-            addLog(msg, logType);
-            
-            // Update system state
-            if (msg.includes('Moving') || msg.includes('forward') || msg.includes('backward') || msg.includes('Rotating')) {
-                updateSystemState('MOVING');
-            } else if (msg.includes('EMERGENCY')) {
-                updateSystemState('EMERGENCY');
-            } else if (msg.includes('complete') || msg.includes('Ready') || msg.includes('IDLE')) {
-                updateSystemState('IDLE');
-            }
-        }
+    <div style="margin-top:16px;">
+      <div class="card-title">Manual</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn-room" id="btnF"  disabled onclick="cmd('F')" style="margin:0;">▲ Forward (follow)</button>
+        <button class="btn-room" id="btnL"  disabled onclick="cmd('L')" style="margin:0;">◄ Left turn</button>
+        <button class="btn-room" id="btnR"  disabled onclick="cmd('R')" style="margin:0;">► Right turn</button>
+      </div>
+    </div>
+  </div>
 
-        function handlePositionMessage(msg) {
-            try {
-                const data = JSON.parse(msg);
-                
-                if (data.steps !== undefined) {
-                    currentSteps = data.steps;
-                    document.getElementById('stepsValue').textContent = data.steps.toLocaleString();
-                    
-                    // Calculate angle if rotating
-                    if (isRotating) {
-                        const rotationProgress = (data.steps / Math.abs(targetAngle === 180 ? STEPS_PER_90_DEGREES * 2 : STEPS_PER_90_DEGREES));
-                        currentAngle = Math.round(targetAngle * Math.min(rotationProgress, 1));
-                        document.getElementById('angleValue').textContent = currentAngle + '°';
-                        
-                        // Flash angle display
-                        const angleEl = document.getElementById('angleValue');
-                        angleEl.style.transform = 'scale(1.1)';
-                        setTimeout(() => angleEl.style.transform = 'scale(1)', 200);
-                    }
-                }
-                
-                if (data.distance !== undefined) {
-                    document.getElementById('distanceValue').textContent = data.distance.toFixed(2);
-                    
-                    // Move wheelchair on map
-                    const icon = document.getElementById('wheelchairIcon');
-                    const moveY = Math.min(data.distance * 60, 280);
-                    icon.style.bottom = (30 + moveY) + 'px';
-                }
-            } catch (e) {
-                console.error('❌ JSON PARSE FAILED:', e);
-            }
-        }
+  <!-- Map -->
+  <div class="card" style="grid-column: span 2;">
+    <div class="card-title">Live Map</div>
+    <div class="map-wrap">
+      <!-- tapes -->
+      <div class="tape tape-v"></div>
+      <div class="tape tape-h1"></div>
+      <div class="tape tape-h2"></div>
 
-        function handlePidMessage(msg) {
-            try {
-                const data = JSON.parse(msg);
-                
-                if (data.error !== undefined) {
-                    document.getElementById('pidError').textContent = data.error;
-                }
-                if (data.output !== undefined) {
-                    document.getElementById('pidOutput').textContent = data.output.toFixed(1);
-                }
-                if (data.active !== undefined) {
-                    document.getElementById('pidActive').textContent = data.active;
-                }
-            } catch (e) {
-                console.error('❌ PID JSON PARSE FAILED:', e);
-            }
-        }
+      <!-- nodes: centred on vertical tape -->
+      <!-- Node 1: lower – branches LEFT to Room 1 -->
+      <div class="map-node" id="mapN1" style="top:183px;left:50%;transform:translateX(-50%);">1</div>
+      <!-- Node 2: higher – branches RIGHT to Room 2 -->
+      <div class="map-node" id="mapN2" style="top:108px;left:50%;transform:translateX(-50%);">2</div>
 
-        function updateCompass() {
-            const needle = document.getElementById('compassNeedle');
-            needle.style.transform = `rotate(${currentHeading}deg)`;
-        }
+      <!-- room labels -->
+      <div class="map-label" style="top:183px;left:20px;">Room 1</div>
+      <div class="map-label" style="top:108px;right:20px;">Room 2</div>
 
-        function updateConnectionStatus(connected) {
-            const el = document.getElementById('connectionStatus');
-            if (connected) {
-                el.innerHTML = '<span>●</span><span>Connected</span>';
-                el.className = 'status-badge status-online';
-                enableAllButtons(true);
-            } else {
-                el.innerHTML = '<span>●</span><span>Disconnected</span>';
-                el.className = 'status-badge status-offline';
-                enableAllButtons(false);
-            }
-        }
+      <!-- start label -->
+      <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-weight:700;color:#334155;font-size:13px;">START</div>
 
-        function updateSystemState(state) {
-            const el = document.getElementById('systemState');
-            el.textContent = state;
-            el.className = 'status-badge ' + 
-                (state === 'MOVING' ? 'status-moving' : 
-                 state === 'EMERGENCY' ? 'status-offline' : 'status-online');
-        }
+      <!-- wheelchair icon -->
+      <div class="wc-icon" id="wcIcon" style="bottom:20px;left:50%;transform:translateX(-50%);">🦽</div>
 
-        function addLog(message, type = 'info') {
-            const container = document.getElementById('logContainer');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + type;
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
-            
-            while (container.children.length > 100) {
-                container.removeChild(container.firstChild);
-            }
-        }
+      <!-- legend -->
+      <div style="position:absolute;bottom:10px;right:10px;background:rgba(255,255,255,.9);border-radius:10px;padding:10px;font-size:11px;color:#334155;">
+        <div style="font-weight:700;margin-bottom:4px;">Legend</div>
+        <div style="display:flex;align-items:center;gap:6px;margin:3px 0;"><div style="width:16px;height:3px;background:#1e293b;border-radius:2px;"></div>Black tape</div>
+        <div style="display:flex;align-items:center;gap:6px;margin:3px 0;"><div style="width:12px;height:12px;background:var(--purple);border-radius:50%;"></div>Node</div>
+        <div style="display:flex;align-items:center;gap:6px;margin:3px 0;"><div style="width:12px;height:12px;background:var(--green);border-radius:50%;"></div>Passed node</div>
+      </div>
+    </div>
+  </div>
 
-        function enableAllButtons(enabled) {
-            document.querySelectorAll('button').forEach(btn => btn.disabled = !enabled);
-        }
+</div>
 
-        function sendCommand(cmd) {
-            if (!client || !client.connected) {
-                addLog('❌ Cannot send - not connected', 'error');
-                return;
-            }
-            
-            // Reset node count on new navigation
-            if (cmd.startsWith('ROOM')) {
-                nodeCount = 0;
-                document.getElementById('nodeCounter').textContent = '0';
-                document.querySelectorAll('.node-marker').forEach(n => {
-                    n.style.background = 'var(--node)';
-                    n.style.transform = 'scale(1)';
-                });
-            }
-            
-            // Reset angle on new command
-            if (cmd === 'F' || cmd === 'B') {
-                currentAngle = 0;
-                document.getElementById('angleValue').textContent = '0°';
-                document.getElementById('angleTarget').textContent = 'Target: -';
-            }
-            
-            client.publish(TOPICS.control, cmd);
-            addLog('✓ Command sent: ' + cmd, 'success');
-        }
+<!-- Activity Log -->
+<div class="card">
+  <div class="card-title" style="display:flex;justify-content:space-between;">
+    <span>Activity Log</span>
+    <button onclick="clearLog()" style="background:transparent;color:var(--muted);font-size:12px;padding:0;border-radius:0;">Clear</button>
+  </div>
+  <div class="log" id="log"></div>
+</div>
 
-        window.addEventListener('load', () => {
-            addLog('🚀 Dashboard initialized', 'success');
-            addLog('📊 Configuration: ' + STEPS_PER_90_DEGREES + ' steps per 90°', 'info');
-            connectMQTT();
-        });
+<script>
+// ── MQTT config ─────────────────────────────────────────────
+const BROKER  = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
+const TOPICS  = {
+  control:  'sachin/esp32/nav/control',
+  status:   'sachin/esp32/nav/status',
+  position: 'sachin/esp32/nav/position',
+  pid:      'sachin/esp32/nav/pid'
+};
 
-        // Keyboard controls
-        document.addEventListener('keydown', (e) => {
-            if (!client || !client.connected) return;
-            
-            const keyMap = {
-                'ArrowUp': 'F',
-                'ArrowDown': 'B',
-                'ArrowLeft': 'L',
-                'ArrowRight': 'R',
-                ' ': 'STOP'
-            };
-            
-            if (keyMap[e.key]) {
-                e.preventDefault();
-                sendCommand(keyMap[e.key]);
-            }
-        });
-    </script>
+let mqttClient;
+let nodeCount = 0;
+
+// ── MQTT connect ────────────────────────────────────────────
+function connectMQTT() {
+  log('Connecting to broker…');
+  mqttClient = mqtt.connect(BROKER, {
+    username: 'wheel',
+    password: 'Wheel123',
+    clientId: 'WC_UI_' + Math.random().toString(16).slice(2,8)
+  });
+
+  mqttClient.on('connect', () => {
+    log('Connected ✓', 'ok');
+    setConn(true);
+    mqttClient.subscribe([TOPICS.status, TOPICS.position, TOPICS.pid]);
+  });
+
+  mqttClient.on('message', (topic, payload) => {
+    const msg = payload.toString();
+    if (topic === TOPICS.status)   onStatus(msg);
+    if (topic === TOPICS.position) onPosition(msg);
+    if (topic === TOPICS.pid)      onPid(msg);
+  });
+
+  mqttClient.on('error',      e  => { log('Error: '+e,'err'); setConn(false); });
+  mqttClient.on('disconnect', () => { log('Disconnected','err'); setConn(false); });
+}
+
+// ── Status handler ──────────────────────────────────────────
+function onStatus(msg) {
+  // State changes
+  if (msg.startsWith('STATE:')) {
+    const s = msg.replace('STATE:','');
+    setStateBadge(s);
+    log('State → ' + s, 'state');
+    return;
+  }
+
+  // Node detection
+  if (msg.includes('NODE')) {
+    const m = msg.match(/NODE (\d+)/);
+    if (m) {
+      nodeCount = parseInt(m[1]);
+      document.getElementById('nodeVal').textContent = nodeCount;
+      const el = document.getElementById('mapN' + nodeCount);
+      if (el) el.classList.add('passed');
+    }
+    log(msg, 'node');
+    return;
+  }
+
+  // Mission labels
+  if (msg.includes('ROOM1')) { document.getElementById('missionLabel').textContent = 'Room 1'; log(msg,'ok'); return; }
+  if (msg.includes('ROOM2')) { document.getElementById('missionLabel').textContent = 'Room 2'; log(msg,'ok'); return; }
+  if (msg.includes('Destination') || msg.includes('stopped')) {
+    document.getElementById('missionLabel').textContent = 'None';
+    log(msg, 'ok'); return;
+  }
+  if (msg.includes('OBSTACLE') || msg.includes('EMERGENCY')) { log(msg,'err'); return; }
+  if (msg.includes('✓') || msg.includes('clear') || msg.includes('ready') || msg.includes('ONLINE')) { log(msg,'ok'); return; }
+  if (msg.includes('⚠️') || msg.includes('Waiting')) { log(msg,'warn'); return; }
+
+  log(msg);
+}
+
+// ── Position handler ────────────────────────────────────────
+function onPosition(msg) {
+  try {
+    const d = JSON.parse(msg);
+    if (d.nodes !== undefined) {
+      nodeCount = d.nodes;
+      document.getElementById('nodeVal').textContent = nodeCount;
+    }
+  } catch(e) {}
+}
+
+// ── PID handler ─────────────────────────────────────────────
+function onPid(msg) {
+  try {
+    const d = JSON.parse(msg);
+    if (d.error  !== undefined) document.getElementById('pidErr').textContent = d.error;
+    if (d.output !== undefined) {
+      document.getElementById('pidOut').textContent = parseFloat(d.output).toFixed(1);
+      // Bar: map output -25…+25 to 0…100%
+      const pct = 50 + (parseFloat(d.output) / 25) * 50;
+      const bar = document.getElementById('pidBar');
+      bar.style.width = Math.min(100,Math.max(0,pct)) + '%';
+      bar.style.background = pct > 50 ? 'var(--blue)' : 'var(--pink)';
+    }
+    if (d.active !== undefined) {
+      document.getElementById('pidActive').textContent = d.active;
+      // Update sensor row visualisation
+      // We only get the count here, not which ones – highlight centre-out
+      const cells = document.querySelectorAll('.sensor-cell');
+      cells.forEach((c,i) => c.classList.remove('on'));
+      const a = parseInt(d.active);
+      const mid = 3.5;
+      // Light up 'a' sensors closest to centre
+      const order = [3,4,2,5,1,6,0,7];
+      for (let i=0; i<Math.min(a,8); i++) cells[order[i]].classList.add('on');
+    }
+  } catch(e) {}
+}
+
+// ── Send command ────────────────────────────────────────────
+function cmd(c) {
+  if (!mqttClient || !mqttClient.connected) { log('Not connected','err'); return; }
+  if (c === 'ROOM1' || c === 'ROOM2') {
+    nodeCount = 0;
+    document.getElementById('nodeVal').textContent = '0';
+    document.querySelectorAll('.map-node').forEach(n => n.classList.remove('passed'));
+  }
+  mqttClient.publish(TOPICS.control, c);
+  log('→ ' + c, 'ok');
+}
+
+// ── UI helpers ──────────────────────────────────────────────
+function setConn(online) {
+  const el = document.getElementById('connBadge');
+  el.className = 'badge ' + (online ? 'badge-green' : 'badge-red');
+  el.innerHTML = `<span class="badge-dot"></span>${online ? 'Connected' : 'Disconnected'}`;
+  document.querySelectorAll('button').forEach(b => b.disabled = !online);
+}
+
+const stateColors = {
+  IDLE:           'badge-green',
+  FOLLOWING:      'badge-blue',
+  LINE_LOST:      'badge-yellow',
+  TURNING:        'badge-blue',
+  EMERGENCY_STOP: 'badge-red'
+};
+function setStateBadge(s) {
+  const el = document.getElementById('stateBadge');
+  const cls = stateColors[s] || 'badge-yellow';
+  el.className = 'badge ' + cls;
+  el.innerHTML = `<span class="badge-dot"></span>${s}`;
+}
+
+function log(msg, type='') {
+  const box = document.getElementById('log');
+  const d = document.createElement('div');
+  d.className = 'log-line ' + type;
+  d.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+  while (box.children.length > 150) box.removeChild(box.firstChild);
+}
+
+function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+// Keyboard shortcut: Space = STOP
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); cmd('STOP'); }
+});
+
+window.addEventListener('load', connectMQTT);
+</script>
 </body>
 </html>
