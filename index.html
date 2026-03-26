@@ -80,16 +80,52 @@
     .metric-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
     /* ── Sensor bar ── */
-    .sensor-row { display:flex; gap:6px; justify-content:center; margin-top: 8px; }
+    .sensor-row {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 8px;
+    }
     .sensor-cell {
-      width: 32px; height: 32px; border-radius: 8px;
+      width: 32px;
+      height: 40px;
+      border-radius: 8px;
       border: 1.5px solid var(--border);
       background: var(--bg);
-      transition: background .15s;
-      display:flex; align-items:center; justify-content:center;
-      font-size:10px; color: var(--muted);
+      transition: background .1s, border-color .1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      flex-direction: column;
+      gap: 2px;
     }
-    .sensor-cell.on { background: var(--purple); border-color: var(--purple); color:#fff; }
+    .sensor-cell .s-num {
+      font-size: 9px;
+      color: var(--muted);
+      line-height: 1;
+    }
+    .sensor-cell .s-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background .1s;
+    }
+    /* ON state: exact sensor sees black tape */
+    .sensor-cell.on {
+      background: rgba(139,92,246,.25);
+      border-color: var(--purple);
+    }
+    .sensor-cell.on .s-dot {
+      background: var(--purple);
+      box-shadow: 0 0 6px rgba(139,92,246,.8);
+    }
+    .sensor-cell.on .s-num {
+      color: #c4b5fd;
+    }
 
     /* ── PID bar ── */
     .pid-track {
@@ -141,11 +177,10 @@
       height: 380px;
       overflow: hidden;
     }
-    /* tape */
     .tape { position:absolute; background:#1e293b; border-radius:4px; }
     .tape-v  { width:14px; bottom:30px; left:50%; transform:translateX(-50%); height:310px; }
-    .tape-h1 { height:14px; top:195px; right:50%; margin-right:-7px; width:160px; } /* room1: left branch  */
-    .tape-h2 { height:14px; top:120px; left:50%;  margin-left:-7px;  width:160px; } /* room2: right branch */
+    .tape-h1 { height:14px; top:195px; right:50%; margin-right:-7px; width:160px; }
+    .tape-h2 { height:14px; top:120px; left:50%;  margin-left:-7px;  width:160px; }
 
     .map-node {
       position:absolute; width:28px; height:28px; border-radius:50%;
@@ -228,12 +263,22 @@
       <div class="metric-label">NODES DETECTED</div>
     </div>
     <div style="margin-top:12px;">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">SENSOR ARRAY (8 channels)</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+        SENSOR ARRAY — D1 (left) → D8 (right)
+      </div>
+      <!-- Sensor cells: each shows its channel number + a coloured dot -->
       <div class="sensor-row" id="sensorRow">
-        <div class="sensor-cell">1</div><div class="sensor-cell">2</div>
-        <div class="sensor-cell">3</div><div class="sensor-cell">4</div>
-        <div class="sensor-cell">5</div><div class="sensor-cell">6</div>
-        <div class="sensor-cell">7</div><div class="sensor-cell">8</div>
+        <div class="sensor-cell" id="sc0"><span class="s-num">D1</span><span class="s-dot"></span></div>
+        <div class="sensor-cell" id="sc1"><span class="s-num">D2</span><span class="s-dot"></span></div>
+        <div class="sensor-cell" id="sc2"><span class="s-num">D3</span><span class="s-dot"></span></div>
+        <div class="sensor-cell" id="sc3"><span class="s-num">D4</span><span class="s-dot"></span></div>
+        <div class="sensor-cell" id="sc4"><span class="s-num">D5</span><span class="s-dot"></span></div>
+        <div class="sensor-cell" id="sc5"><span class="s-num">D6</span><span class="s-dot"></span></div>
+        <div class="sensor-cell" id="sc6"><span class="s-num">D7</span><span class="s-dot"></span></div>
+        <div class="sensor-cell" id="sc7"><span class="s-num">D8</span><span class="s-dot"></span></div>
+      </div>
+      <div style="margin-top:8px;text-align:center;font-size:11px;color:var(--muted)">
+        Active: <span id="activeCount" style="color:var(--purple);font-weight:700;">0</span> / 8
       </div>
     </div>
   </div>
@@ -290,9 +335,9 @@
     <div style="margin-top:16px;">
       <div class="card-title">Manual</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button class="btn-room" id="btnF"  disabled onclick="cmd('F')" style="margin:0;">▲ Forward (follow)</button>
-        <button class="btn-room" id="btnL"  disabled onclick="cmd('L')" style="margin:0;">◄ Left turn</button>
-        <button class="btn-room" id="btnR"  disabled onclick="cmd('R')" style="margin:0;">► Right turn</button>
+        <button class="btn-room" id="btnF" disabled onclick="cmd('F')" style="margin:0;">▲ Forward (follow)</button>
+        <button class="btn-room" id="btnL" disabled onclick="cmd('L')" style="margin:0;">◄ Left turn</button>
+        <button class="btn-room" id="btnR" disabled onclick="cmd('R')" style="margin:0;">► Right turn</button>
       </div>
     </div>
   </div>
@@ -301,28 +346,20 @@
   <div class="card" style="grid-column: span 2;">
     <div class="card-title">Live Map</div>
     <div class="map-wrap">
-      <!-- tapes -->
       <div class="tape tape-v"></div>
       <div class="tape tape-h1"></div>
       <div class="tape tape-h2"></div>
 
-      <!-- nodes: centred on vertical tape -->
-      <!-- Node 1: lower – branches LEFT to Room 1 -->
       <div class="map-node" id="mapN1" style="top:183px;left:50%;transform:translateX(-50%);">1</div>
-      <!-- Node 2: higher – branches RIGHT to Room 2 -->
       <div class="map-node" id="mapN2" style="top:108px;left:50%;transform:translateX(-50%);">2</div>
 
-      <!-- room labels -->
       <div class="map-label" style="top:183px;left:20px;">Room 1</div>
       <div class="map-label" style="top:108px;right:20px;">Room 2</div>
 
-      <!-- start label -->
       <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-weight:700;color:#334155;font-size:13px;">START</div>
 
-      <!-- wheelchair icon -->
       <div class="wc-icon" id="wcIcon" style="bottom:20px;left:50%;transform:translateX(-50%);">🦽</div>
 
-      <!-- legend -->
       <div style="position:absolute;bottom:10px;right:10px;background:rgba(255,255,255,.9);border-radius:10px;padding:10px;font-size:11px;color:#334155;">
         <div style="font-weight:700;margin-bottom:4px;">Legend</div>
         <div style="display:flex;align-items:center;gap:6px;margin:3px 0;"><div style="width:16px;height:3px;background:#1e293b;border-radius:2px;"></div>Black tape</div>
@@ -345,8 +382,8 @@
 
 <script>
 // ── MQTT config ─────────────────────────────────────────────
-const BROKER  = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
-const TOPICS  = {
+const BROKER = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
+const TOPICS = {
   control:  'sachin/esp32/nav/control',
   status:   'sachin/esp32/nav/status',
   position: 'sachin/esp32/nav/position',
@@ -356,13 +393,17 @@ const TOPICS  = {
 let mqttClient;
 let nodeCount = 0;
 
+// ── Cache sensor cell DOM refs once ─────────────────────────
+const sensorCells = [];
+for (let i = 0; i < 8; i++) sensorCells.push(document.getElementById('sc' + i));
+
 // ── MQTT connect ────────────────────────────────────────────
 function connectMQTT() {
   log('Connecting to broker…');
   mqttClient = mqtt.connect(BROKER, {
     username: 'wheel',
     password: 'Wheel123',
-    clientId: 'WC_UI_' + Math.random().toString(16).slice(2,8)
+    clientId: 'WC_UI_' + Math.random().toString(16).slice(2, 8)
   });
 
   mqttClient.on('connect', () => {
@@ -378,21 +419,18 @@ function connectMQTT() {
     if (topic === TOPICS.pid)      onPid(msg);
   });
 
-  mqttClient.on('error',      e  => { log('Error: '+e,'err'); setConn(false); });
-  mqttClient.on('disconnect', () => { log('Disconnected','err'); setConn(false); });
+  mqttClient.on('error',      e  => { log('Error: ' + e, 'err'); setConn(false); });
+  mqttClient.on('disconnect', () => { log('Disconnected', 'err'); setConn(false); });
 }
 
 // ── Status handler ──────────────────────────────────────────
 function onStatus(msg) {
-  // State changes
   if (msg.startsWith('STATE:')) {
-    const s = msg.replace('STATE:','');
+    const s = msg.replace('STATE:', '');
     setStateBadge(s);
     log('State → ' + s, 'state');
     return;
   }
-
-  // Node detection
   if (msg.includes('NODE')) {
     const m = msg.match(/NODE (\d+)/);
     if (m) {
@@ -404,18 +442,15 @@ function onStatus(msg) {
     log(msg, 'node');
     return;
   }
-
-  // Mission labels
-  if (msg.includes('ROOM1')) { document.getElementById('missionLabel').textContent = 'Room 1'; log(msg,'ok'); return; }
-  if (msg.includes('ROOM2')) { document.getElementById('missionLabel').textContent = 'Room 2'; log(msg,'ok'); return; }
+  if (msg.includes('ROOM1'))       { document.getElementById('missionLabel').textContent = 'Room 1'; log(msg, 'ok'); return; }
+  if (msg.includes('ROOM2'))       { document.getElementById('missionLabel').textContent = 'Room 2'; log(msg, 'ok'); return; }
   if (msg.includes('Destination') || msg.includes('stopped')) {
     document.getElementById('missionLabel').textContent = 'None';
     log(msg, 'ok'); return;
   }
-  if (msg.includes('OBSTACLE') || msg.includes('EMERGENCY')) { log(msg,'err'); return; }
-  if (msg.includes('✓') || msg.includes('clear') || msg.includes('ready') || msg.includes('ONLINE')) { log(msg,'ok'); return; }
-  if (msg.includes('⚠️') || msg.includes('Waiting')) { log(msg,'warn'); return; }
-
+  if (msg.includes('OBSTACLE') || msg.includes('EMERGENCY')) { log(msg, 'err'); return; }
+  if (msg.includes('✓') || msg.includes('clear') || msg.includes('ready') || msg.includes('ONLINE')) { log(msg, 'ok'); return; }
+  if (msg.includes('⚠️') || msg.includes('Waiting')) { log(msg, 'warn'); return; }
   log(msg);
 }
 
@@ -427,40 +462,65 @@ function onPosition(msg) {
       nodeCount = d.nodes;
       document.getElementById('nodeVal').textContent = nodeCount;
     }
-  } catch(e) {}
+  } catch (e) {}
 }
 
 // ── PID handler ─────────────────────────────────────────────
+// FIX: now uses d.mask (bitmask from ESP32) to light up the
+//      EXACT sensors that physically see the black tape.
+//      Bit 0 = D1 (leftmost), bit 7 = D8 (rightmost).
 function onPid(msg) {
   try {
     const d = JSON.parse(msg);
-    if (d.error  !== undefined) document.getElementById('pidErr').textContent = d.error;
+
+    // Error value
+    if (d.error !== undefined) {
+      document.getElementById('pidErr').textContent = d.error;
+    }
+
+    // Output value + correction bar
     if (d.output !== undefined) {
-      document.getElementById('pidOut').textContent = parseFloat(d.output).toFixed(1);
-      // Bar: map output -25…+25 to 0…100%
-      const pct = 50 + (parseFloat(d.output) / 25) * 50;
+      const out = parseFloat(d.output);
+      document.getElementById('pidOut').textContent = out.toFixed(1);
+      const pct = 50 + (out / 25) * 50;
       const bar = document.getElementById('pidBar');
-      bar.style.width = Math.min(100,Math.max(0,pct)) + '%';
+      bar.style.width      = Math.min(100, Math.max(0, pct)) + '%';
       bar.style.background = pct > 50 ? 'var(--blue)' : 'var(--pink)';
     }
+
+    // Active sensor count
     if (d.active !== undefined) {
-      document.getElementById('pidActive').textContent = d.active;
-      // Update sensor row visualisation
-      // We only get the count here, not which ones – highlight centre-out
-      const cells = document.querySelectorAll('.sensor-cell');
-      cells.forEach((c,i) => c.classList.remove('on'));
-      const a = parseInt(d.active);
-      const mid = 3.5;
-      // Light up 'a' sensors closest to centre
-      const order = [3,4,2,5,1,6,0,7];
-      for (let i=0; i<Math.min(a,8); i++) cells[order[i]].classList.add('on');
+      document.getElementById('pidActive').textContent  = d.active;
+      document.getElementById('activeCount').textContent = d.active;
     }
-  } catch(e) {}
+
+    // ── Sensor visualisation ──────────────────────────────
+    // Use bitmask when available (new firmware): each bit maps
+    // directly to one physical sensor channel.
+    if (d.mask !== undefined) {
+      const mask = parseInt(d.mask);
+      for (let i = 0; i < 8; i++) {
+        // bit i is set  → sensor D(i+1) sees black tape → ON
+        if (mask & (1 << i)) {
+          sensorCells[i].classList.add('on');
+        } else {
+          sensorCells[i].classList.remove('on');
+        }
+      }
+    } else {
+      // Fallback for old firmware that only sends 'active' count:
+      // turn off all sensors (we can't know which ones are active)
+      sensorCells.forEach(c => c.classList.remove('on'));
+    }
+
+  } catch (e) {
+    console.warn('onPid parse error:', e);
+  }
 }
 
 // ── Send command ────────────────────────────────────────────
 function cmd(c) {
-  if (!mqttClient || !mqttClient.connected) { log('Not connected','err'); return; }
+  if (!mqttClient || !mqttClient.connected) { log('Not connected', 'err'); return; }
   if (c === 'ROOM1' || c === 'ROOM2') {
     nodeCount = 0;
     document.getElementById('nodeVal').textContent = '0';
@@ -486,16 +546,16 @@ const stateColors = {
   EMERGENCY_STOP: 'badge-red'
 };
 function setStateBadge(s) {
-  const el = document.getElementById('stateBadge');
+  const el  = document.getElementById('stateBadge');
   const cls = stateColors[s] || 'badge-yellow';
   el.className = 'badge ' + cls;
   el.innerHTML = `<span class="badge-dot"></span>${s}`;
 }
 
-function log(msg, type='') {
+function log(msg, type = '') {
   const box = document.getElementById('log');
-  const d = document.createElement('div');
-  d.className = 'log-line ' + type;
+  const d   = document.createElement('div');
+  d.className  = 'log-line ' + type;
   d.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
   box.appendChild(d);
   box.scrollTop = box.scrollHeight;
