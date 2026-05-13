@@ -8,115 +8,105 @@
   <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     :root {
-      --bg:     #0f172a; --surface:#1e293b; --border: #334155;
-      --text:   #f1f5f9; --muted:  #94a3b8;
-      --blue:   #3b82f6; --green:  #10b981; --yellow: #f59e0b;
-      --red:    #ef4444; --purple: #8b5cf6; --pink:   #ec4899;
+      --bg:     #eef2f7;
+      --surface:#ffffff;
+      --border: #dde5f0;
+      --text:   #0f172a;
+      --muted:  #5c6b87;
+      --blue:   #2563eb;
+      --green:  #059669;
+      --yellow: #ca8a04;
+      --red:    #dc2626;
+      --purple: #7c3aed;
+      --pink:   #be185d;
     }
-    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text);
-           min-height: 100vh; padding: 24px; }
-
-    h1   { font-size: 26px; font-weight: 800; }
-    .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; margin-top: 2px; }
-
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr));
-            gap: 16px; margin-bottom: 16px; }
+    body { font-family: system-ui, sans-serif; background: var(--bg);
+           color: var(--text); padding: 24px; min-height: 100vh; }
+    h1   { font-size: 24px; font-weight: 700; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; margin-top: 3px; }
+    .top-bar { height: 3px; border-radius: 2px; margin-bottom: 20px;
+               background: linear-gradient(90deg, var(--blue), var(--purple), var(--green)); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr));
+            gap: 14px; margin-bottom: 14px; }
     .card { background: var(--surface); border: 1px solid var(--border);
-            border-radius: 14px; padding: 20px; }
+            border-radius: 14px; padding: 18px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.06); }
     .card-title { font-size: 11px; font-weight: 600; color: var(--muted);
-                  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; }
-
+                  text-transform: uppercase; letter-spacing: .07em; margin-bottom: 12px; }
     .badge { display: inline-flex; align-items: center; gap: 6px;
              padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
     .dot   { width: 7px; height: 7px; border-radius: 50%; }
-    .b-green  { background: rgba(16,185,129,.15); color: var(--green);  }
-    .b-green  .dot { background: var(--green);  }
-    .b-red    { background: rgba(239,68,68,.15);  color: var(--red);    }
-    .b-red    .dot { background: var(--red);    }
-    .b-blue   { background: rgba(59,130,246,.15); color: var(--blue);   }
-    .b-blue   .dot { background: var(--blue);   }
-    .b-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
-    .b-yellow .dot { background: var(--yellow); }
-
-    .num { font-size: 48px; font-weight: 800; line-height: 1; }
-
-    /* Sensor strip */
+    .b-green  { background: #d1fae5; color: #065f46; } .b-green  .dot { background: var(--green);  }
+    .b-red    { background: #fee2e2; color: #991b1b; } .b-red    .dot { background: var(--red);    }
+    .b-blue   { background: #dbeafe; color: #1e40af; } .b-blue   .dot { background: var(--blue);   }
+    .b-yellow { background: #fef3c7; color: #92400e; } .b-yellow .dot { background: var(--yellow); }
+    .num { font-size: 46px; font-weight: 800; line-height: 1; }
     .sensors { display: flex; gap: 5px; justify-content: center; }
     .sc { width: 32px; height: 42px; border-radius: 8px; border: 1.5px solid var(--border);
-          background: var(--bg); display: flex; flex-direction: column;
+          background: #f8fafc; display: flex; flex-direction: column;
           align-items: center; justify-content: center; gap: 4px; }
     .sc .n { font-size: 9px; color: var(--muted); font-weight: 600; }
-    .sc .d { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
-    .sc.on  { background: rgba(139,92,246,.2); border-color: var(--purple); }
-    .sc.on .d { background: var(--purple); box-shadow: 0 0 5px rgba(139,92,246,.8); }
-    .sc.on .n { color: #c4b5fd; }
-
-    /* PID bar */
-    .bar-wrap { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+    .sc .d { width: 9px; height: 9px; border-radius: 50%; background: #c8d3e8; }
+    .sc.on  { background: #ede9fe; border-color: var(--purple); }
+    .sc.on .d { background: var(--purple); box-shadow: 0 0 5px rgba(124,58,237,.4); }
+    .sc.on .n { color: #5b21b6; }
+    .bar-wrap { height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
     .bar-fill { height: 100%; width: 50%; border-radius: 4px;
                 background: var(--blue); transition: width .12s, background .12s; }
-
-    /* Map */
-    .map  { background: #f8fafc; border-radius: 12px; position: relative;
-            height: 360px; overflow: hidden; }
+    .map { background: #f1f5fb; border-radius: 12px; position: relative;
+           height: 340px; overflow: hidden; border: 1px solid var(--border); }
     .tape { position: absolute; background: #1e293b; border-radius: 3px; }
-    .tv   { width: 13px; bottom: 30px; left: 50%; transform: translateX(-50%); height: 290px; }
-    .th1  { height: 13px; top: 185px; right: 50%; margin-right:-6px; width: 150px; }
-    .th2  { height: 13px; top: 110px; left: 50%;  margin-left:-6px;  width: 150px; }
+    .tv   { width: 13px; bottom: 28px; left: 50%; transform: translateX(-50%); height: 278px; }
+    .th1  { height: 13px; top: 178px; right: 50%; margin-right: -6px; width: 145px; }
+    .th2  { height: 13px; top: 105px; left: 50%;  margin-left: -6px;  width: 145px; }
     .mnode { position: absolute; width: 26px; height: 26px; border-radius: 50%;
              background: var(--purple); border: 2.5px solid white;
              display: flex; align-items: center; justify-content: center;
              font-weight: 800; font-size: 12px; color: white;
-             box-shadow: 0 0 12px rgba(139,92,246,.5); z-index: 5;
-             transition: background .3s; }
+             box-shadow: 0 0 10px rgba(124,58,237,.35); z-index: 5; transition: background .3s; }
     .mnode.passed { background: var(--green); }
-    .mlabel { position: absolute; padding: 5px 12px; background: var(--green);
+    .mlabel { position: absolute; padding: 5px 11px; background: var(--green);
               color: white; border-radius: 7px; font-weight: 700; font-size: 11px; z-index: 3; }
     .wc { position: absolute; width: 40px; height: 40px; border-radius: 50%;
           background: var(--blue); border: 2.5px solid white;
-          display: flex; align-items: center; justify-content: center; font-size: 22px;
-          box-shadow: 0 0 16px rgba(59,130,246,.6);
+          display: flex; align-items: center; justify-content: center; font-size: 21px;
+          box-shadow: 0 0 14px rgba(37,99,235,.4);
           transition: bottom .35s ease, left .35s ease; z-index: 10; }
-
-    /* Buttons */
-    button { border: none; cursor: pointer; font-family: inherit; font-weight: 700;
+    button { border: none; cursor: pointer; font-family: inherit; font-weight: 600;
              border-radius: 10px; transition: all .15s; color: var(--text); }
-    button:disabled { opacity: .3; cursor: not-allowed; }
-    .btn-room { width: 100%; padding: 16px 18px; background: var(--border); font-size: 14px;
+    button:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-room { width: 100%; padding: 14px 16px; background: #f1f5f9; font-size: 13px;
                 display: flex; align-items: center; justify-content: space-between;
-                margin-bottom: 10px; text-align: left; }
-    .btn-room:hover:not(:disabled) { background: #475569; transform: translateX(3px); }
-    .btn-room.r1:not(:disabled) { background: rgba(59,130,246,.2);  border: 1px solid var(--blue);   }
-    .btn-room.r2:not(:disabled) { background: rgba(139,92,246,.2); border: 1px solid var(--purple); }
-    .btn-stop { width: 100%; padding: 16px; font-size: 16px; margin-top: 8px;
-                background: rgba(239,68,68,.15); border: 1px solid var(--red); color: var(--red); }
-    .btn-stop:hover:not(:disabled) { background: rgba(239,68,68,.3); }
-    .mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-    .btn-m { padding: 14px; background: var(--border); font-size: 13px; }
-    .btn-m:hover:not(:disabled) { background: #475569; }
-
-    /* Log */
-    .log { background: #0a0f1e; border-radius: 10px; padding: 14px;
-           height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; }
-    .ll  { padding: 4px 8px; margin: 2px 0; border-left: 2px solid var(--blue);
-           color: #cbd5e1; border-radius: 0 5px 5px 0; }
+                margin-bottom: 9px; text-align: left; border: 1px solid var(--border); }
+    .btn-room:hover:not(:disabled) { background: #e2e8f0; transform: translateX(3px); }
+    .btn-room.r1:not(:disabled) { background: #dbeafe; border-color: #93c5fd; color: #1e40af; }
+    .btn-room.r2:not(:disabled) { background: #ede9fe; border-color: #c4b5fd; color: #5b21b6; }
+    .btn-stop { width: 100%; padding: 14px; font-size: 15px; margin-top: 8px;
+                background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+    .btn-stop:hover:not(:disabled) { background: #fecaca; }
+    .mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .btn-m { padding: 13px; background: #f8fafc; font-size: 13px; border: 1px solid var(--border); }
+    .btn-m:hover:not(:disabled) { background: #e2e8f0; }
+    .log { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px;
+           padding: 12px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; }
+    .ll { padding: 4px 8px; margin: 2px 0; border-left: 2px solid var(--blue);
+          color: #334155; border-radius: 0 5px 5px 0; }
     .ll.ok    { border-color: var(--green);  }
     .ll.warn  { border-color: var(--yellow); }
     .ll.err   { border-color: var(--red);    }
-    .ll.node  { border-color: var(--purple); color: #c4b5fd; font-weight: 700; }
-    .ll.state { border-color: var(--pink);   color: #f9a8d4; }
+    .ll.node  { border-color: var(--purple); color: #5b21b6; font-weight: 700; }
+    .ll.state { border-color: var(--pink);   color: #9d174d; }
   </style>
 </head>
 <body>
 
+<div class="top-bar"></div>
 <h1>🦽 Wheelchair Control</h1>
 <p class="sub">Node-based navigation — PID line following</p>
 
 <div class="grid">
-
-  <!-- Status -->
   <div class="card">
-    <div class="card-title">Connection & State</div>
+    <div class="card-title">Connection & state</div>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">MQTT broker</div>
@@ -128,17 +118,16 @@
       </div>
       <div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Mission</div>
-        <span id="mission" style="font-size:14px;font-weight:600;color:var(--muted)">None</span>
+        <span id="mission" style="font-size:14px;font-weight:600;color:var(--muted);">None</span>
       </div>
     </div>
   </div>
 
-  <!-- Node + Sensors -->
   <div class="card">
     <div class="card-title">Node detection</div>
-    <div style="text-align:center;margin-bottom:14px;">
-      <div class="num" id="nodeVal" style="color:var(--purple)">0</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px;">NODES DETECTED</div>
+    <div style="text-align:center;margin-bottom:12px;">
+      <div class="num" id="nodeVal" style="color:var(--purple);">0</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px;">NODES DETECTED</div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">SENSOR ARRAY — D1 (left) → D8 (right)</div>
     <div class="sensors">
@@ -151,57 +140,55 @@
       <div class="sc" id="sc6"><span class="n">D7</span><span class="d"></span></div>
       <div class="sc" id="sc7"><span class="n">D8</span><span class="d"></span></div>
     </div>
-    <div style="margin-top:8px;text-align:center;font-size:11px;color:var(--muted)">
-      Active: <span id="activeCount" style="color:var(--purple);font-weight:700">0</span> / 8
+    <div style="margin-top:8px;text-align:center;font-size:11px;color:var(--muted);">
+      Active: <span id="activeCount" style="color:var(--purple);font-weight:700;">0</span> / 8
     </div>
   </div>
 
-  <!-- PID -->
   <div class="card">
     <div class="card-title">PID control</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-      <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--muted)">ERROR</div>
-        <div style="font-size:30px;font-weight:800;color:var(--yellow)" id="pidErr">0</div>
+      <div style="text-align:center;background:#fef9c3;border-radius:10px;padding:12px;">
+        <div style="font-size:11px;color:#92400e;margin-bottom:2px;">ERROR</div>
+        <div style="font-size:28px;font-weight:800;color:#92400e;" id="pidErr">0</div>
       </div>
-      <div style="text-align:center;">
-        <div style="font-size:11px;color:var(--muted)">OUTPUT</div>
-        <div style="font-size:30px;font-weight:800;color:var(--blue)" id="pidOut">0.0</div>
+      <div style="text-align:center;background:#dbeafe;border-radius:10px;padding:12px;">
+        <div style="font-size:11px;color:#1e40af;margin-bottom:2px;">OUTPUT</div>
+        <div style="font-size:28px;font-weight:800;color:#1e40af;" id="pidOut">0.0</div>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">CORRECTION ← left | right →</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:5px;">CORRECTION ← left | right →</div>
     <div class="bar-wrap"><div class="bar-fill" id="pidBar"></div></div>
-    <div style="margin-top:12px;text-align:center;">
-      <div style="font-size:11px;color:var(--muted)">ACTIVE SENSORS</div>
-      <div style="font-size:22px;font-weight:700" id="pidActive">0</div>
+    <div style="margin-top:12px;text-align:center;background:#f5f3ff;border-radius:10px;padding:10px;">
+      <div style="font-size:11px;color:#5b21b6;">ACTIVE SENSORS</div>
+      <div style="font-size:22px;font-weight:700;color:#5b21b6;" id="pidActive">0</div>
     </div>
   </div>
-
 </div>
 
 <div class="grid">
-
-  <!-- Controls -->
   <div class="card">
     <div class="card-title">Room navigation</div>
     <button class="btn-room r1" id="bR1" disabled onclick="cmd('ROOM1')">
-      <div><div>🏠 Room 1</div>
-        <div style="font-size:12px;opacity:.6;font-weight:400;margin-top:2px">node 1 → turn right → forward</div></div>
-      <span style="font-size:18px">→</span>
+      <div><div style="font-weight:700;">🏠 Room 1</div>
+        <div style="font-size:11px;opacity:.7;font-weight:400;margin-top:2px;">node 1 → right → forward</div></div>
+      <span style="font-size:16px;">→</span>
     </button>
     <button class="btn-room r2" id="bR2" disabled onclick="cmd('ROOM2')">
-      <div><div>🏠 Room 2</div>
-        <div style="font-size:12px;opacity:.6;font-weight:400;margin-top:2px">node 1 → turn left → forward</div></div>
-      <span style="font-size:18px">→</span>
+      <div><div style="font-weight:700;">🏠 Room 2</div>
+        <div style="font-size:11px;opacity:.7;font-weight:400;margin-top:2px;">node 1 → left → forward</div></div>
+      <span style="font-size:16px;">→</span>
     </button>
-    <button class="btn-room" id="bRet1" disabled onclick="cmd('RETURN1')">
-      <div><div>↩️ Return from Room 1</div></div><span style="font-size:18px">←</span>
+    <button class="btn-room" id="bRet1" disabled onclick="cmd('RETURN1')"
+            style="background:#f0fdf4;border-color:#86efac;color:#14532d;">
+      <div><div style="font-weight:700;">↩️ Return from Room 1</div></div><span>←</span>
     </button>
-    <button class="btn-room" id="bRet2" disabled onclick="cmd('RETURN2')">
-      <div><div>↩️ Return from Room 2</div></div><span style="font-size:18px">←</span>
+    <button class="btn-room" id="bRet2" disabled onclick="cmd('RETURN2')"
+            style="background:#f0fdf4;border-color:#86efac;color:#14532d;">
+      <div><div style="font-weight:700;">↩️ Return from Room 2</div></div><span>←</span>
     </button>
     <button class="btn-stop" id="bStop" disabled onclick="cmd('STOP')">🛑 Emergency stop</button>
-    <div class="card-title" style="margin-top:16px;">Manual</div>
+    <div class="card-title" style="margin-top:14px;">Manual</div>
     <div class="mgrid">
       <button class="btn-m" id="bF" disabled onclick="cmd('F')">▲ Forward</button>
       <button class="btn-m" id="bB" disabled onclick="cmd('B')">▼ Backward</button>
@@ -210,139 +197,103 @@
     </div>
   </div>
 
-  <!-- Map -->
   <div class="card" style="grid-column: span 2;">
     <div class="card-title">Live map</div>
     <div class="map">
       <div class="tape tv"></div>
       <div class="tape th1"></div>
       <div class="tape th2"></div>
-      <div class="mnode" id="mapN1" style="top:178px;left:50%;transform:translateX(-50%)">1</div>
-      <div class="mnode" id="mapN2" style="top:103px;left:50%;transform:translateX(-50%)">2</div>
-      <div class="mlabel" style="top:178px;left:20px">Room 2</div>
-      <div class="mlabel" style="top:178px;right:20px">Room 1</div>
-      <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
-                  font-weight:700;color:#334155;font-size:12px">START</div>
-      <div class="wc" id="wcIcon" style="bottom:18px;left:calc(50% - 20px)">🦽</div>
-      <div style="position:absolute;bottom:10px;right:10px;background:rgba(255,255,255,.9);
-                  border-radius:9px;padding:10px;font-size:11px;color:#334155;">
-        <div style="font-weight:700;margin-bottom:4px">Legend</div>
-        <div style="display:flex;align-items:center;gap:6px;margin:3px 0">
-          <div style="width:14px;height:3px;background:#1e293b;border-radius:2px"></div>Black tape</div>
-        <div style="display:flex;align-items:center;gap:6px;margin:3px 0">
-          <div style="width:11px;height:11px;background:var(--purple);border-radius:50%"></div>Node</div>
-        <div style="display:flex;align-items:center;gap:6px;margin:3px 0">
-          <div style="width:11px;height:11px;background:var(--green);border-radius:50%"></div>Passed</div>
+      <div class="mnode" id="mapN1" style="top:171px;left:50%;transform:translateX(-50%);">1</div>
+      <div class="mnode" id="mapN2" style="top:98px;left:50%;transform:translateX(-50%);">2</div>
+      <div class="mlabel" style="top:171px;left:18px;">Room 2</div>
+      <div class="mlabel" style="top:171px;right:18px;">Room 1</div>
+      <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+                  font-weight:700;color:#64748b;font-size:11px;">START</div>
+      <div class="wc" id="wcIcon" style="bottom:16px;left:calc(50% - 20px);">🦽</div>
+      <div style="position:absolute;bottom:8px;right:8px;background:white;
+                  border:1px solid var(--border);border-radius:9px;padding:10px;
+                  font-size:11px;color:#334155;">
+        <div style="font-weight:700;margin-bottom:5px;">Legend</div>
+        <div style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+          <div style="width:14px;height:3px;background:#1e293b;border-radius:2px;"></div>Black tape</div>
+        <div style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+          <div style="width:11px;height:11px;background:var(--purple);border-radius:50%;"></div>Node</div>
+        <div style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+          <div style="width:11px;height:11px;background:var(--green);border-radius:50%;"></div>Passed</div>
       </div>
     </div>
   </div>
-
 </div>
 
-<!-- Log -->
 <div class="card">
   <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
     <span>Activity log</span>
     <button onclick="clearLog()" style="background:none;color:var(--muted);font-size:11px;
-            border-radius:0;padding:0;font-weight:400">Clear</button>
+            border-radius:0;padding:0;font-weight:400;">Clear</button>
   </div>
   <div class="log" id="log"></div>
 </div>
 
 <script>
 const BROKER = 'wss://da5d5e6e407e495db2c68d35b34b405b.s1.eu.hivemq.cloud:8884/mqtt';
-const T = {
-  ctrl: 'sachin/esp32/nav/control',
-  stat: 'sachin/esp32/nav/status',
-  pos:  'sachin/esp32/nav/position',
-  pid:  'sachin/esp32/nav/pid'
-};
+const T = { ctrl:'sachin/esp32/nav/control', stat:'sachin/esp32/nav/status',
+            pos:'sachin/esp32/nav/position', pid:'sachin/esp32/nav/pid' };
 const PID_MAX = 40;
-
-let mc;                 // mqtt client
-let nodeCount = 0;
+let mc, nodeCount = 0;
 const scs = Array.from({length:8}, (_,i) => document.getElementById('sc'+i));
 
-// ── MQTT ─────────────────────────────────────────────────────
 function connect() {
   log('Connecting…');
-  mc = mqtt.connect(BROKER, {
-    username: 'wheel', password: 'Wheel123',
-    clientId: 'UI_' + Math.random().toString(16).slice(2,8)
-  });
-  mc.on('connect',    ()      => { log('Connected ✓','ok'); setConn(true);  mc.subscribe([T.stat,T.pos,T.pid]); });
-  mc.on('message',    onMsg);
+  mc = mqtt.connect(BROKER, { username:'wheel', password:'Wheel123',
+    clientId: 'UI_' + Math.random().toString(16).slice(2,8) });
+  mc.on('connect',    ()      => { log('Connected ✓','ok'); setConn(true); mc.subscribe([T.stat,T.pos,T.pid]); });
+  mc.on('message',    (t,p)   => { const m=p.toString(); if(t===T.stat)onStatus(m); if(t===T.pos)onPosition(m); if(t===T.pid)onPid(m); });
   mc.on('error',      e       => { log('Error: '+e,'err'); setConn(false); });
   mc.on('disconnect', ()      => { log('Disconnected','err'); setConn(false); });
 }
 
-function onMsg(topic, payload) {
-  const m = payload.toString();
-  if (topic === T.stat) onStatus(m);
-  if (topic === T.pos)  onPosition(m);
-  if (topic === T.pid)  onPid(m);
-}
-
-// ── Status messages ───────────────────────────────────────────
-const stateMap = {
-  IDLE:           ['b-green',  'IDLE'],
-  MOVING:         ['b-blue',   'MOVING'],
-  OBSTACLE:       ['b-red',    'OBSTACLE'],
-  EMERGENCY_STOP: ['b-red',    'EMERGENCY'],
-};
+const stateMap = { IDLE:['b-green','IDLE'], MOVING:['b-blue','MOVING'],
+                   OBSTACLE:['b-red','OBSTACLE'], EMERGENCY_STOP:['b-red','EMERGENCY'] };
 
 function onStatus(m) {
-  // STATE:X — update badge
   if (m.startsWith('STATE:')) {
     const s = m.slice(6);
     const [cls, label] = stateMap[s] || ['b-yellow', s];
     const el = document.getElementById('stateBadge');
     el.className = 'badge ' + cls;
     el.innerHTML = `<span class="dot"></span>${label}`;
-    log('→ ' + s, 'state');
-    return;
+    log('→ ' + s, 'state'); return;
   }
-
-  // NODE:n — update counter and map
   if (m.startsWith('NODE:')) {
     nodeCount = parseInt(m.slice(5));
     document.getElementById('nodeVal').textContent = nodeCount;
     const el = document.getElementById('mapN' + nodeCount);
     if (el) el.classList.add('passed');
-    log(m, 'node');
-    return;
+    log(m, 'node'); return;
   }
-
-  // Mission tracking
-  if (m.includes('ROOM1'))   document.getElementById('mission').textContent = 'Room 1';
-  if (m.includes('ROOM2'))   document.getElementById('mission').textContent = 'Room 2';
+  if (m.includes('ROOM1')) document.getElementById('mission').textContent = 'Room 1';
+  if (m.includes('ROOM2')) document.getElementById('mission').textContent = 'Room 2';
   if (m === 'DONE' || m === 'STOPPED') document.getElementById('mission').textContent = 'None';
-
-  const cls = (m === 'CLEARED' || m === 'ONLINE' || m === 'DONE' || m.startsWith('SEG:')) ? 'ok'
-            : (m === 'LINE_LOST' || m === 'OBSTACLE')                                      ? 'err'
-            : (m === 'BUSY')                                                                ? 'warn'
-            : '';
+  const cls = (m==='CLEARED'||m==='ONLINE'||m==='DONE'||m.startsWith('SEG:')) ? 'ok'
+            : (m==='LINE_LOST'||m==='OBSTACLE')                                 ? 'err'
+            : (m==='BUSY')                                                       ? 'warn' : '';
   log(m, cls);
 }
 
-// ── Position ─────────────────────────────────────────────────
 function onPosition(m) {
   try {
     const d = JSON.parse(m);
-    if (d.distance !== undefined) {
-      const wc = document.getElementById('wcIcon');
-      wc.style.bottom = (18 + Math.min(d.distance * 50, 270)) + 'px';
-    }
+    if (d.distance !== undefined)
+      document.getElementById('wcIcon').style.bottom = (16 + Math.min(d.distance * 50, 255)) + 'px';
   } catch(e) {}
 }
 
-// ── PID + sensors ─────────────────────────────────────────────
 function onPid(m) {
   try {
     const d = JSON.parse(m);
     if (d.error  !== undefined) document.getElementById('pidErr').textContent = d.error;
     if (d.active !== undefined) {
-      document.getElementById('pidActive').textContent = d.active;
+      document.getElementById('pidActive').textContent  = d.active;
       document.getElementById('activeCount').textContent = d.active;
     }
     if (d.output !== undefined) {
@@ -355,27 +306,21 @@ function onPid(m) {
     }
     if (d.mask !== undefined) {
       const mask = parseInt(d.mask);
-      for (let i = 0; i < 8; i++) {
-        scs[i].classList.toggle('on', !!(mask & (1 << i)));
-      }
+      for (let i = 0; i < 8; i++) scs[i].classList.toggle('on', !!(mask & (1 << i)));
     }
   } catch(e) {}
 }
 
-// ── Commands ─────────────────────────────────────────────────
 function cmd(c) {
   if (!mc || !mc.connected) { log('Not connected','err'); return; }
-  if (c === 'ROOM1' || c === 'ROOM2' || c === 'RETURN1' || c === 'RETURN2') {
-    nodeCount = 0;
-    document.getElementById('nodeVal').textContent = '0';
+  if (['ROOM1','ROOM2','RETURN1','RETURN2'].includes(c)) {
+    nodeCount = 0; document.getElementById('nodeVal').textContent = '0';
     document.querySelectorAll('.mnode').forEach(n => n.classList.remove('passed'));
-    document.getElementById('wcIcon').style.bottom = '18px';
+    document.getElementById('wcIcon').style.bottom = '16px';
   }
-  mc.publish(T.ctrl, c);
-  log('→ ' + c, 'ok');
+  mc.publish(T.ctrl, c); log('→ ' + c, 'ok');
 }
 
-// ── UI helpers ────────────────────────────────────────────────
 function setConn(online) {
   const el = document.getElementById('connBadge');
   el.className = 'badge ' + (online ? 'b-green' : 'b-red');
@@ -385,21 +330,15 @@ function setConn(online) {
 
 function log(msg, type='') {
   const box = document.getElementById('log');
-  const d   = document.createElement('div');
+  const d = document.createElement('div');
   d.className = 'll ' + type;
   d.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-  box.appendChild(d);
-  box.scrollTop = box.scrollHeight;
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
   while (box.children.length > 150) box.removeChild(box.firstChild);
 }
 
 function clearLog() { document.getElementById('log').innerHTML = ''; }
-
-// Spacebar = emergency stop
-document.addEventListener('keydown', e => {
-  if (e.code === 'Space') { e.preventDefault(); cmd('STOP'); }
-});
-
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); cmd('STOP'); } });
 window.addEventListener('load', connect);
 </script>
 </body>
